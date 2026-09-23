@@ -79,9 +79,13 @@ def upload_public_image(path: Path) -> str:
     except ValueError as e:
         raise KieError(f"KIE's file upload returned an unreadable response (HTTP {resp.status_code}).") from e
 
-    file_url = (payload.get("data") or {}).get("fileUrl")
+    data = payload.get("data") or {}
+    file_url = data.get("fileUrl") or data.get("downloadUrl") or data.get("url") or data.get("file_url")
     if not file_url:
-        raise KieError(payload.get("msg") or f"KIE's file upload didn't return a file URL (HTTP {resp.status_code}).")
+        # The "msg" field is just a status message (e.g. "File uploaded successfully") even on
+        # requests where we can't find the URL — surface the actual response shape instead so a
+        # mismatched field name can be fixed without another round-trip of guessing.
+        raise KieError(f"KIE's file upload didn't return a recognizable file URL. Raw response: {json.dumps(payload)[:800]}")
     return file_url
 
 
