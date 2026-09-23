@@ -29,5 +29,5 @@ VISION_MODEL = os.environ.get("AI_UGC_VISION_MODEL", "claude-sonnet-5")
 KIE_API_KEY = os.environ.get("KIE_API_KEY", "")
 KIE_MODEL = os.environ.get("KIE_MODEL", "gemini-omni-video")
 
-# Public image hosting for KIE's input images (see app/integrations/catbox.py) needs
-# no credentials — nothing to configure here.
+# Public image hosting for KIE's input images uses KIE's own File Upload API
+# (see app/integrations/kie.py) — no separate credential, reuses KIE_API_KEY.

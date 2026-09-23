@@ -5,19 +5,34 @@ Reference: https://docs.kie.ai — `POST /api/v1/jobs/createTask` (model
 Generation is asynchronous: createTask returns a `taskId` immediately, not a
 finished video — the caller polls recordInfo (or supplies a callback URL,
 which this app doesn't use since it has no public endpoint to receive one).
+
+Also includes upload_public_image, which uses KIE's own File Upload API
+(a different host, kieai.redpandaai.co) to host local reference photos at a
+public URL KIE's video/character endpoints can fetch — no third-party host
+needed, and no separate credential beyond the same KIE_API_KEY.
 """
 
 import json
+from pathlib import Path
 
 import httpx
 
 from app.config import KIE_API_KEY, KIE_MODEL
 
 KIE_BASE_URL = "https://api.kie.ai"
+FILE_UPLOAD_BASE_URL = "https://kieai.redpandaai.co"
 
 # KIE's own quota rule for this endpoint: images + videos*2 + character_ids <= 7.
 # We never send video_list, so this simplifies to images + character_ids <= 7.
 MAX_INPUT_SLOTS = 7
+
+MIME_TYPES = {
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".png": "image/png",
+    ".webp": "image/webp",
+    ".gif": "image/gif",
+}
 
 
 class KieNotConfigured(Exception):
@@ -28,13 +43,45 @@ class KieError(Exception):
     """The KIE API call ran but failed, or returned something unusable."""
 
 
-def _headers() -> dict:
+def _auth_header() -> dict:
     if not KIE_API_KEY:
         raise KieNotConfigured(
             "No KIE API key is configured. Set KIE_API_KEY in your environment (see .env.example) to "
             "enable video generation."
         )
-    return {"Authorization": f"Bearer {KIE_API_KEY}", "Content-Type": "application/json"}
+    return {"Authorization": f"Bearer {KIE_API_KEY}"}
+
+
+def _headers() -> dict:
+    return {**_auth_header(), "Content-Type": "application/json"}
+
+
+def upload_public_image(path: Path) -> str:
+    """Uploads a local image to KIE's own file storage and returns a public
+    URL KIE's other endpoints can fetch it from. Uploaded files are temporary
+    (auto-deleted within roughly a day) — fine here since the URL is used
+    immediately in the same request, never relied on afterward."""
+    mime_type = MIME_TYPES.get(path.suffix.lower(), "image/jpeg")
+    try:
+        with path.open("rb") as f:
+            resp = httpx.post(
+                f"{FILE_UPLOAD_BASE_URL}/api/file-stream-upload",
+                headers=_auth_header(),
+                files={"file": (path.name, f, mime_type)},
+                timeout=60,
+            )
+    except httpx.RequestError as e:
+        raise KieError(f"Couldn't reach KIE's file upload service: {e}") from e
+
+    try:
+        payload = resp.json()
+    except ValueError as e:
+        raise KieError(f"KIE's file upload returned an unreadable response (HTTP {resp.status_code}).") from e
+
+    file_url = (payload.get("data") or {}).get("fileUrl")
+    if not file_url:
+        raise KieError(payload.get("msg") or f"KIE's file upload didn't return a file URL (HTTP {resp.status_code}).")
+    return file_url
 
 
 def image_budget(character_ids: list[str], character_uses_body: bool) -> int:

@@ -8,8 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.database import DATA_DIR, get_db
 from app.generation.vision import VisionError, VisionNotConfigured, analyze_persona
-from app.integrations.catbox import CatboxError, upload_public_image
-from app.integrations.kie import KieError, KieNotConfigured, create_character as kie_create_character
+from app.integrations.kie import KieError, KieNotConfigured, create_character as kie_create_character, upload_public_image
 from app.models import Character, CharacterImage, ImageKind
 from app.schemas import CharacterOut, ImageOut
 
@@ -251,7 +250,9 @@ def register_kie_character(character_id: str, db: Session = Depends(get_db)):
 
     try:
         image_urls = [upload_public_image(UPLOADS_DIR / img.file_path) for img in reference_images]
-    except CatboxError as e:
+    except KieNotConfigured as e:
+        raise HTTPException(422, str(e)) from e
+    except KieError as e:
         raise HTTPException(502, f"Couldn't prepare reference photos for KIE: {e}") from e
 
     try:

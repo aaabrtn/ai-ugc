@@ -14,8 +14,15 @@ from app.database import DATA_DIR, get_db
 from app.generation.sop_check import has_blocking_failure, run_sop_checks
 from app.generation.template import assemble_prompt
 from app.generation.vision import VisionError, VisionNotConfigured, analyze_garment, analyze_persona, analyze_setting
-from app.integrations.catbox import CatboxError, upload_public_image
-from app.integrations.kie import KieError, KieNotConfigured, get_task_detail, image_budget, parse_result_urls, submit_video_task
+from app.integrations.kie import (
+    KieError,
+    KieNotConfigured,
+    get_task_detail,
+    image_budget,
+    parse_result_urls,
+    submit_video_task,
+    upload_public_image,
+)
 from app.models import Character, FetchStatus, Generation, GenerationStage, ImageKind, Product, VideoStatus
 from app.schemas import CharacterSummaryOut, GarmentAnalysisOut, GenerationOut, ProductSummaryOut, SopCheckOut
 
@@ -230,7 +237,9 @@ def submit_video(generation_id: str, db: Session = Depends(get_db)):
 
     try:
         image_urls = [upload_public_image(p) for p in reference_paths]
-    except CatboxError as e:
+    except KieNotConfigured as e:
+        raise HTTPException(422, str(e)) from e
+    except KieError as e:
         raise HTTPException(502, f"Couldn't prepare reference photos for KIE: {e}") from e
 
     try:
