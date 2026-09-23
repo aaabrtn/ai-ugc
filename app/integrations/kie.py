@@ -68,6 +68,7 @@ def upload_public_image(path: Path) -> str:
                 f"{FILE_UPLOAD_BASE_URL}/api/file-stream-upload",
                 headers=_auth_header(),
                 files={"file": (path.name, f, mime_type)},
+                data={"uploadPath": "ai-ugc/reference-photos"},
                 timeout=60,
             )
     except httpx.RequestError as e:
