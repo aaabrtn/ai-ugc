@@ -380,45 +380,17 @@ function buildCostLine(script) {
   return p;
 }
 
-function videoResultArrow() {
-  const span = document.createElement("span");
-  span.className = "video-result-arrow";
-  span.textContent = "→";
-  return span;
-}
-
-function videoResultItem(thumbnailUrl, label) {
-  const item = document.createElement("div");
-  item.className = "video-result-item";
-
-  const thumb = document.createElement("div");
-  thumb.className = "video-result-thumb";
-  if (thumbnailUrl) {
-    const img = document.createElement("img");
-    img.src = thumbnailUrl;
-    thumb.appendChild(img);
-  }
-
-  const caption = document.createElement("p");
-  caption.className = "video-result-label";
-  caption.textContent = label;
-
-  item.append(thumb, caption);
-  return item;
-}
-
-// Builds the compact "character -> product -> result video" row (plus a cost
-// line, when known) shown once a video finishes, reused by both the script
-// detail page and History cards.
+// Builds the compact result video (plus a cost line, when known) shown once a
+// video finishes, reused by both the script detail page and History cards.
+// Just the video itself, kept small — character/product are already
+// identified elsewhere (the script's own title/eyebrow, the History card's
+// caption), so repeating their thumbnails here would just be noise.
 function buildVideoResultRow(script) {
   const block = document.createElement("div");
   block.className = "video-result-block";
 
-  const row = document.createElement("div");
-  row.className = "video-result-row";
-
   const videoItem = document.createElement("div");
-  videoItem.className = "video-result-item video-result-player";
+  videoItem.className = "video-result-player";
   const video = document.createElement("video");
   video.controls = true;
   video.src = script.video_url;
@@ -428,15 +400,7 @@ function buildVideoResultRow(script) {
   downloadLink.download = `${script.character.name}-${script.product.name}`.replace(/[^\w.-]+/g, "-") + ".mp4";
   downloadLink.textContent = "Download";
   videoItem.append(video, downloadLink);
-
-  row.append(
-    videoResultItem(script.character.thumbnail_url, script.character.name),
-    videoResultArrow(),
-    videoResultItem(script.product.thumbnail_url, script.product.name),
-    videoResultArrow(),
-    videoItem,
-  );
-  block.appendChild(row);
+  block.appendChild(videoItem);
 
   const costLine = buildCostLine(script);
   if (costLine) block.appendChild(costLine);
