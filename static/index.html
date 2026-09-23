@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AI UGC Character Manager</title>
+  <title>AI UGC Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -14,84 +14,180 @@
     <div class="brand">
       <span class="brand-mark">AI</span>
       <div>
-        <h1>Character Manager</h1>
-        <p class="brand-sub">AI UGC Generator</p>
+        <h1>AI UGC Generator</h1>
+        <p class="brand-sub">KLIQMGMT</p>
       </div>
     </div>
-    <button id="new-character-btn" class="btn btn-primary">+ New Character</button>
+    <nav class="tabs">
+      <button type="button" class="tab-btn active" data-tab="characters">Characters</button>
+      <button type="button" class="tab-btn" data-tab="products">Products</button>
+    </nav>
+    <div class="topbar-actions">
+      <button id="new-character-btn" class="btn btn-primary tab-action" data-tab="characters">+ New Character</button>
+      <button id="new-job-btn" class="btn btn-primary tab-action" data-tab="products" hidden>+ New Product</button>
+    </div>
   </header>
 
   <main>
-    <section id="character-list-view">
-      <div id="character-list" class="character-grid"></div>
-      <div id="empty-state" class="empty-state" hidden>
-        <p class="empty-title">No characters yet</p>
-        <p class="empty-sub">Create your first character to get started.</p>
-        <button type="button" class="btn btn-primary" id="empty-new-btn">+ New Character</button>
-      </div>
-    </section>
+    <div id="characters-tab" class="tab-panel">
+      <section id="character-list-view">
+        <div id="character-list" class="character-grid"></div>
+        <div id="empty-state" class="empty-state" hidden>
+          <p class="empty-title">No characters yet</p>
+          <p class="empty-sub">Create your first character to get started.</p>
+          <button type="button" class="btn btn-primary" id="empty-new-btn">+ New Character</button>
+        </div>
+      </section>
 
-    <section id="character-form-view" hidden>
-      <form id="character-form" class="character-form" novalidate>
-        <input type="hidden" id="character-id" />
+      <section id="character-form-view" hidden>
+        <form id="character-form" class="character-form" novalidate>
+          <input type="hidden" id="character-id" />
 
+          <div class="form-header">
+            <div>
+              <p class="eyebrow" id="form-eyebrow">New Character</p>
+              <input type="text" id="f-name" class="name-input" placeholder="Character name" required />
+            </div>
+            <button type="button" id="delete-btn" class="btn btn-danger-ghost" hidden>Delete</button>
+          </div>
+
+          <div class="form-grid">
+            <section class="field-card">
+              <h3>Character reference photos</h3>
+              <p class="hint">Clear photos of the character. Her identity — face, hair, skin tone, build — is read directly from these images.</p>
+              <div class="dropzone" id="identity-dropzone">
+                <div id="identity-images-existing" class="image-grid"></div>
+                <div id="identity-pending" class="image-grid"></div>
+                <label class="dropzone-tile" for="f-identity-images">
+                  <span class="dropzone-icon">+</span>
+                  <span>Add</span>
+                </label>
+                <input type="file" id="f-identity-images" accept="image/*" multiple hidden />
+              </div>
+            </section>
+
+            <section class="field-card" id="setting-section">
+              <div class="field-card-head">
+                <h3>Settings reference photos</h3>
+                <span id="setting-lock-badge" class="badge badge-locked" hidden>&#128274; Locked</span>
+              </div>
+              <p class="hint">The permanent filming location. Locked once saved — changing it changes the look of every future video with this character.</p>
+              <div class="dropzone" id="setting-dropzone">
+                <div id="setting-images-existing" class="image-grid"></div>
+                <div id="setting-pending" class="image-grid"></div>
+                <label class="dropzone-tile" for="f-setting-images">
+                  <span class="dropzone-icon">+</span>
+                  <span>Add</span>
+                </label>
+                <input type="file" id="f-setting-images" accept="image/*" multiple hidden />
+              </div>
+              <button type="button" id="unlock-setting-btn" class="btn btn-warning" hidden>Edit locked setting&hellip;</button>
+            </section>
+
+            <section class="field-card">
+              <h3>Characteristics</h3>
+              <p class="hint">Optional additional context — the reference photos already do most of the work.</p>
+              <textarea id="f-characteristics" rows="4" placeholder="e.g. freckles across the nose, small gold hoop earrings, soft natural smile..."></textarea>
+            </section>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="cancel-btn" class="btn btn-ghost">Cancel</button>
+            <button type="submit" class="btn btn-primary">Save Character</button>
+          </div>
+          <p id="form-error" class="error" hidden></p>
+        </form>
+      </section>
+    </div>
+
+    <div id="products-tab" class="tab-panel" hidden>
+      <section id="job-list-view">
+        <div id="job-list" class="job-list"></div>
+        <div id="job-empty-state" class="empty-state" hidden>
+          <p class="empty-title">No products yet</p>
+          <p class="empty-sub">Give a product URL to a character and fetch its photos to get started.</p>
+          <button type="button" class="btn btn-primary" id="job-empty-new-btn">+ New Product</button>
+        </div>
+      </section>
+
+      <section id="job-form-view" hidden>
+        <form id="job-form" class="character-form" novalidate>
+          <div class="form-header">
+            <div>
+              <p class="eyebrow">New Product</p>
+              <h2 class="section-title">Fetch a product</h2>
+            </div>
+          </div>
+
+          <div class="form-grid form-grid-single">
+            <section class="field-card">
+              <h3>Character</h3>
+              <p class="hint">Which character will be wearing this product.</p>
+              <select id="jf-character" required></select>
+            </section>
+
+            <section class="field-card">
+              <h3>Product URL</h3>
+              <p class="hint">Their website, a TikTok Shop link, or a Kalodata product link. We'll always try this first, through several methods, before falling back to manual photos.</p>
+              <input type="url" id="jf-source-url" placeholder="https://..." />
+            </section>
+
+            <section class="field-card">
+              <h3>Product photos <span class="hint-inline">(fail-safe, optional)</span></h3>
+              <p class="hint">Only used if the URL can't be read automatically — or skip the URL entirely and just attach photos.</p>
+              <div class="dropzone" id="job-images-dropzone">
+                <div id="job-images-pending" class="image-grid"></div>
+                <label class="dropzone-tile" for="jf-manual-images">
+                  <span class="dropzone-icon">+</span>
+                  <span>Add</span>
+                </label>
+                <input type="file" id="jf-manual-images" accept="image/*" multiple hidden />
+              </div>
+            </section>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="job-cancel-btn" class="btn btn-ghost">Cancel</button>
+            <button type="submit" id="job-submit-btn" class="btn btn-primary">Fetch Product</button>
+          </div>
+          <p id="job-form-error" class="error" hidden></p>
+        </form>
+      </section>
+
+      <section id="job-detail-view" hidden>
         <div class="form-header">
           <div>
-            <p class="eyebrow" id="form-eyebrow">New Character</p>
-            <input type="text" id="f-name" class="name-input" placeholder="Character name" required />
+            <p class="eyebrow" id="job-detail-eyebrow">Product</p>
+            <h2 class="section-title" id="job-detail-title">&nbsp;</h2>
           </div>
-          <button type="button" id="delete-btn" class="btn btn-danger-ghost" hidden>Delete</button>
+          <button type="button" id="job-delete-btn" class="btn btn-danger-ghost">Delete</button>
         </div>
 
-        <div class="form-grid">
-          <section class="field-card">
-            <h3>Character reference photos</h3>
-            <p class="hint">Clear photos of the character. Her identity — face, hair, skin tone, build — is read directly from these images.</p>
-            <div class="dropzone" id="identity-dropzone">
-              <div id="identity-images-existing" class="image-grid"></div>
-              <div id="identity-pending" class="image-grid"></div>
-              <label class="dropzone-tile" for="f-identity-images">
-                <span class="dropzone-icon">+</span>
-                <span>Add</span>
-              </label>
-              <input type="file" id="f-identity-images" accept="image/*" multiple hidden />
-            </div>
-          </section>
+        <p id="job-detail-banner" class="banner" hidden></p>
 
-          <section class="field-card" id="setting-section">
+        <div class="form-grid form-grid-single">
+          <section class="field-card">
             <div class="field-card-head">
-              <h3>Settings reference photos</h3>
-              <span id="setting-lock-badge" class="badge badge-locked" hidden>&#128274; Locked</span>
+              <h3>Fetched photos</h3>
+              <span id="job-detail-method" class="badge badge-muted"></span>
             </div>
-            <p class="hint">The permanent filming location. Locked once saved — changing it changes the look of every future video with this character.</p>
-            <div class="dropzone" id="setting-dropzone">
-              <div id="setting-images-existing" class="image-grid"></div>
-              <div id="setting-pending" class="image-grid"></div>
-              <label class="dropzone-tile" for="f-setting-images">
-                <span class="dropzone-icon">+</span>
-                <span>Add</span>
-              </label>
-              <input type="file" id="f-setting-images" accept="image/*" multiple hidden />
-            </div>
-            <button type="button" id="unlock-setting-btn" class="btn btn-warning" hidden>Edit locked setting&hellip;</button>
+            <div id="job-detail-images" class="image-grid-static"></div>
           </section>
 
-          <section class="field-card">
-            <h3>Characteristics</h3>
-            <p class="hint">Optional additional context — the reference photos already do most of the work.</p>
-            <textarea id="f-characteristics" rows="4" placeholder="e.g. freckles across the nose, small gold hoop earrings, soft natural smile..."></textarea>
+          <section class="field-card" id="job-detail-product-info">
+            <h3>Product info</h3>
+            <p class="hint" id="job-detail-description">&nbsp;</p>
           </section>
         </div>
 
         <div class="form-actions">
-          <button type="button" id="cancel-btn" class="btn btn-ghost">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Character</button>
+          <button type="button" id="job-detail-back-btn" class="btn btn-ghost">Back</button>
         </div>
-        <p id="form-error" class="error" hidden></p>
-      </form>
-    </section>
+      </section>
+    </div>
   </main>
 
   <script src="/static/js/app.js"></script>
+  <script src="/static/js/jobs.js"></script>
 </body>
 </html>

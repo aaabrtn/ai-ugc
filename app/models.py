@@ -60,3 +60,50 @@ class CharacterImage(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     character = relationship("Character", back_populates="images")
+
+
+class FetchStatus(str, enum.Enum):
+    success = "success"
+    failed = "failed"
+
+
+class Job(Base):
+    """A single product → video attempt. Phase 2 only covers getting the product
+    photos in (via URL fetch, with manual upload as the fallback); later phases
+    add prompt generation, KIE submission, and Drive upload on top of this row."""
+
+    __tablename__ = "jobs"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    character_id = Column(String, ForeignKey("characters.id"), nullable=False)
+
+    source_url = Column(String, default="")
+    fetch_method_used = Column(String, default="")  # structured_data / html_scrape / headless_browser / manual_upload
+    fetch_status = Column(Enum(FetchStatus), nullable=False)
+    fetch_error = Column(Text, default="")  # human-readable; set when fetch_status == failed, or as a note on fallback
+
+    product_title = Column(String, default="")
+    product_description = Column(Text, default="")
+
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    character = relationship("Character")
+    images = relationship(
+        "JobImage",
+        back_populates="job",
+        cascade="all, delete-orphan",
+        order_by="JobImage.created_at",
+    )
+
+
+class JobImage(Base):
+    __tablename__ = "job_images"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    job_id = Column(String, ForeignKey("jobs.id"), nullable=False)
+    file_path = Column(String, nullable=False)  # path relative to data/uploads/
+    source_url = Column(String, default="")  # original remote URL, if scraped
+    original_filename = Column(String, default="")  # if manually uploaded
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    job = relationship("Job", back_populates="images")

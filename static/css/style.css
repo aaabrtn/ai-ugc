@@ -77,6 +77,34 @@ body {
   color: var(--text-muted);
 }
 
+.tabs {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem;
+}
+
+.tab-btn {
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.85rem;
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
 main {
   max-width: 980px;
   margin: 0 auto;
@@ -410,8 +438,134 @@ textarea:focus {
 .image-thumb .remove-btn:hover { background: var(--danger); }
 .image-thumb.marked-removed { opacity: 0.35; }
 
+/* ---------- Products / jobs ---------- */
+
+.section-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+.form-grid-single {
+  grid-template-columns: 1fr;
+}
+.form-grid-single .field-card:last-child { grid-column: auto; }
+
+.hint-inline {
+  font-weight: 400;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+select {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 0.92rem;
+  background: var(--surface-alt);
+  color: var(--text);
+}
+select:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+
+input[type="url"] {
+  display: block;
+  width: 100%;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  font-size: 0.92rem;
+  background: var(--surface-alt);
+  color: var(--text);
+}
+input[type="url"]:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+
+.job-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.1rem;
+}
+
+.job-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  cursor: pointer;
+  display: flex;
+  gap: 0.9rem;
+  align-items: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.job-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-strong);
+}
+
+.job-card .thumb {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(135deg, #f0ece6, #e6ded3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.job-card .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.job-card .thumb.failed { color: var(--danger); font-size: 1.3rem; }
+
+.job-card-body { min-width: 0; flex: 1; }
+.job-card-body h3 {
+  margin: 0 0 0.2rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+.job-card-url {
+  margin: 0 0 0.35rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge-ok { background: #e4f3e8; color: var(--ok); }
+.badge-fail { background: var(--danger-soft); color: var(--danger); }
+.badge-muted { background: var(--surface-alt); color: var(--text-muted); border: 1px solid var(--border); }
+
+.banner {
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-size: 0.88rem;
+  line-height: 1.5;
+  white-space: pre-line;
+}
+.banner-error { background: var(--danger-soft); color: var(--danger); }
+.banner-info { background: var(--warning-soft); color: var(--warning); }
+.banner-success { background: #e4f3e8; color: var(--ok); }
+
+.image-grid-static {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+.image-grid-static .image-thumb .remove-btn { display: none; }
+.image-grid-static .image-thumb {
+  width: 120px;
+  height: 120px;
+}
+
 @media (max-width: 720px) {
-  .topbar { padding: 1rem 1.25rem; }
+  .topbar { padding: 1rem 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
   main { padding: 1.5rem 1.1rem 4rem; }
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .field-card:last-child { grid-column: auto; }

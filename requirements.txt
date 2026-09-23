@@ -3,3 +3,6 @@ uvicorn[standard]
 sqlalchemy
 python-multipart
 pydantic
+httpx
+beautifulsoup4
+playwright
