@@ -19,11 +19,21 @@ GRIP_LINE = (
     "entire time"
 )
 
+# Mirrors GRIP_LINE's fix for hand-detachment: repeated in every single cut (not
+# stated once) because a garment fade/disappear-on-contact glitch was observed
+# where the top-level [GARMENT] mention alone wasn't enough to hold through 5
+# cuts of contact and movement. See SOP §1 rule 9.
+GARMENT_PERMANENCE_LINE = (
+    "the outfit itself stays fully opaque, solid, and completely unchanged in colour, texture, and "
+    "coverage throughout this cut — it never fades, thins, dissolves, or disappears at any point, "
+    "including exactly where her hand touches or rests against it"
+)
+
 DEFAULT_MOVEMENT_NOTE = "Default SOP movement pace applies: roughly 1.2x natural speed, energetic but never frantic or glitchy."
 
 
 def _cut(number: int, time_range: str, beat: str) -> str:
-    return f"Cut {number} ({time_range}) — {beat} {GRIP_LINE.capitalize()}."
+    return f"Cut {number} ({time_range}) — {beat} {GRIP_LINE.capitalize()}. {GARMENT_PERMANENCE_LINE.capitalize()}."
 
 
 def _fabric_touch_detail(garment: GarmentAnalysis) -> str:
@@ -123,7 +133,10 @@ def assemble_prompt(
         "one available for touching fabric or hair. No turn, in either direction, ever exceeds a "
         "three-quarter rotation — never a full back-turn, which is anatomically impossible in a selfie "
         "POV. Anatomy stays completely consistent frame to frame, with no extra arms, hands, or "
-        "duplicated body parts.",
+        "duplicated body parts. The garment itself is a solid, continuously-worn object for the entire "
+        "video — it stays fully opaque and unchanged in coverage everywhere on her body, including "
+        "exactly where her free hand touches or rests against it; it never fades, thins, dissolves, or "
+        "disappears at any point, in any cut.",
         "",
         "[CUT-BY-CUT CHOREOGRAPHY — movement pace " + movement_line + "]",
         *cuts,

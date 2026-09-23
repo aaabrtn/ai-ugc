@@ -60,6 +60,14 @@ def run_sop_checks(prompt_text: str, garment: GarmentAnalysis) -> list[SopCheck]
     )
 
     add(
+        "garment_permanence_repeated",
+        "Garment never fades/disappears on contact, restated per cut",
+        prompt_text.count("never fades, thins, dissolves, or disappears") >= 5,
+        "Garment-permanence language appears in every cut.",
+        "The garment-permanence phrase doesn't appear once per cut as expected.",
+    )
+
+    add(
         "three_quarter_only",
         "No turn exceeds three-quarter rotation",
         "three-quarter" in prompt_text and "full turn" not in prompt_text.lower() and "180" not in prompt_text,

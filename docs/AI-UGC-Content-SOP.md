@@ -17,6 +17,7 @@ These exist specifically to prevent hand detachment, duplicate phones, and other
 6. **Write physics in positive terms.** Never phrase constraints as negation ("her hand doesn't detach"). Diffusion/video models reinforce whatever concept is named — so write what the body *does* ("her hand stays gripping the phone throughout"), not what it must avoid doing.
 7. **Anti-detachment language repeats every cut, not once.** The grip/attachment rule must be restated in each individual cut's description, not just once at the top of the prompt. A single top-level mention is not enough to hold through 5 hard cuts of fast movement.
 8. **No watermarks, no AI-tool branding.** Every prompt explicitly prohibits watermarks, logos, or visible generation-tool branding in the output.
+9. **The garment never fades or disappears on contact.** Observed failure: as she touches/taps the fabric (Section 4), part of the outfit faded off and disappeared at the point of contact. The garment is a solid, continuously-worn object for the entire video — it stays fully opaque and unchanged in colour, texture, and coverage everywhere on her body, including exactly where her hand touches or rests against it. Like Rule 7, this must be restated in **every individual cut**, not just once at the top — a single top-level mention is not enough to hold through 5 cuts of contact and movement.
 
 ---
 
@@ -51,6 +52,7 @@ This is the default pacing skeleton. Hard jump-cuts every 2 seconds, 5 total, no
 - She naturally touches/feels the garment at some point (fabric, texture, hem, tie, hardware) using her **free** hand only.
 - This should read as an unconscious, natural gesture — not a deliberate close-up or zoom. No macro/zoomed shots of the fabric. She just feels it in the course of moving, and the texture reads through that natural contact.
 - Only include hand gestures that have a physical reason (adjusting the garment, touching hair, feeling fabric) — generic "hand movement" with no cause reads as fake. This rule exists because hand gestures in reference/talking videos are speech-driven; in a silent video they need their own physical justification.
+- **The touched fabric stays fully solid and opaque.** Wherever her hand makes contact, the garment must be described as remaining completely unchanged — same colour, same texture, same coverage. See Section 1, Rule 9.
 
 ---
 
@@ -122,6 +124,7 @@ This is the core philosophy underneath everything else: **realism comes from imp
 - **Walking + mirror + turning away, combined in one motion** — this combination reliably breaks generation: causes POV camera switches and duplicate-phone artifacts. Never combine all three in a single continuous beat.
 - Full back-turn in selfie POV — see Section 1, Rule 3.
 - Standing right up against the mirror while initiating a turn — see Section 1, Rule 5.
+- **Hand-to-garment contact without explicit garment-permanence language** — observed to cause the touched fabric to fade, thin, or disappear at the point of contact (e.g. tapping her side). Always restate that the garment stays fully opaque and unchanged wherever it's touched — see Section 1, Rule 9.
 
 ---
 
@@ -130,6 +133,7 @@ This is the core philosophy underneath everything else: **realism comes from imp
 Before sending any prompt, confirm:
 
 - [ ] One phone, one gripping hand, restated per cut
+- [ ] Garment stays fully opaque, never fades/disappears on contact, restated per cut
 - [ ] No turn exceeds three-quarter rotation
 - [ ] Opening cut starts mid-motion, not static
 - [ ] All 5 cuts are hard jumps, ~2s each, ~1.2x pace
