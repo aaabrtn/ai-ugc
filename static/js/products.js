@@ -40,7 +40,6 @@ function switchTab(tab) {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.dataset.tab === tab);
   });
-  el("home-btn").classList.toggle("active", tab === "scripts");
   document.querySelectorAll(".tab-action").forEach((btn) => {
     btn.hidden = btn.dataset.tab !== tab;
   });
@@ -60,7 +59,6 @@ function switchTab(tab) {
 document.querySelectorAll(".tab-btn").forEach((btn) => {
   btn.addEventListener("click", () => switchTab(btn.dataset.tab));
 });
-el("home-btn").addEventListener("click", () => switchTab("scripts"));
 
 // ---------- View switching ----------
 

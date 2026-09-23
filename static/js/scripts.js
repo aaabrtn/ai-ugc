@@ -243,27 +243,33 @@ function renderPromptSection(script) {
 
   const checklist = el("script-detail-checklist");
   checklist.innerHTML = "";
-  for (const check of script.sop_check_results) {
-    const item = document.createElement("div");
-    item.className = `checklist-item ${check.status}`;
 
-    const icon = document.createElement("span");
-    icon.className = "checklist-icon";
-    icon.textContent = CHECK_ICONS[check.status] || "?";
+  const failedCheck = script.sop_check_results.find((c) => c.status === "fail");
+  const item = document.createElement("div");
+  const icon = document.createElement("span");
+  icon.className = "checklist-icon";
+  const body = document.createElement("div");
+  body.className = "checklist-body";
+  const label = document.createElement("p");
+  label.className = "checklist-label";
 
-    const body = document.createElement("div");
-    body.className = "checklist-body";
-    const label = document.createElement("p");
-    label.className = "checklist-label";
-    label.textContent = check.label;
+  if (failedCheck) {
+    item.className = "checklist-item fail";
+    icon.textContent = CHECK_ICONS.fail;
+    label.textContent = failedCheck.label;
     const detail = document.createElement("p");
     detail.className = "checklist-detail";
-    detail.textContent = check.detail;
+    detail.textContent = failedCheck.detail;
     body.append(label, detail);
-
-    item.append(icon, body);
-    checklist.appendChild(item);
+  } else {
+    item.className = "checklist-item pass";
+    icon.textContent = CHECK_ICONS.pass;
+    label.textContent = "Video prompts SOP followed or confirmed.";
+    body.append(label);
   }
+
+  item.append(icon, body);
+  checklist.appendChild(item);
 
   const promptTextarea = el("script-detail-prompt-text");
   const approveBtn = el("script-approve-btn");
