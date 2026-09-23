@@ -14,6 +14,7 @@ const scriptFormError = el("script-form-error");
 const scriptCharacterSelect = el("sf-character");
 const scriptProductSelect = el("sf-product");
 const scriptSubmitBtn = el("script-submit-btn");
+const scriptCreateAndGenerateBtn = el("script-create-and-generate-btn");
 
 const STAGE_LABELS = {
   draft: "Draft",
@@ -191,6 +192,54 @@ scriptForm.addEventListener("submit", async (e) => {
     const script = await res.json();
     showScriptDetail(script);
   } finally {
+    scriptSubmitBtn.disabled = false;
+  }
+});
+
+scriptCreateAndGenerateBtn.addEventListener("click", async () => {
+  scriptFormError.hidden = true;
+
+  const characterId = scriptCharacterSelect.value;
+  const productId = scriptProductSelect.value;
+  if (!characterId || !productId) {
+    showScriptFormError("Choose a character and a product.");
+    return;
+  }
+
+  const originalText = scriptCreateAndGenerateBtn.textContent;
+  scriptCreateAndGenerateBtn.disabled = true;
+  scriptSubmitBtn.disabled = true;
+
+  try {
+    const fd = new FormData();
+    fd.append("character_id", characterId);
+    fd.append("product_id", productId);
+    let res = await fetch(GENERATIONS_API_BASE, { method: "POST", body: fd });
+    if (!res.ok) {
+      showScriptFormError(await extractScriptError(res));
+      return;
+    }
+    let script = await res.json();
+    currentScript = script;
+    // Switch to the detail view right away so each step's progress (stage
+    // badge, then video status) is visible live, not just the final result.
+    showScriptDetail(script);
+
+    script = await generateApproveAndSubmit(script, {
+      onStep: (s) => { currentScript = s; renderScriptDetail(s); },
+    });
+    currentScript = script;
+    renderScriptDetail(script);
+  } catch (e) {
+    if (e instanceof StepError) {
+      currentScript = e.script;
+      renderScriptDetail(e.script);
+    } else {
+      alert(e.message);
+    }
+  } finally {
+    scriptCreateAndGenerateBtn.disabled = false;
+    scriptCreateAndGenerateBtn.textContent = originalText;
     scriptSubmitBtn.disabled = false;
   }
 });
@@ -471,6 +520,50 @@ async function runGenerate(button) {
   }
 }
 
+// Carries the last successfully-reached script state, so a failure partway
+// through still leaves the caller able to render exactly where things stopped
+// rather than the stale pre-call state.
+class StepError extends Error {
+  constructor(message, script) {
+    super(message);
+    this.script = script;
+  }
+}
+
+// Runs generate -> (unless blocked) approve as-is -> submit-video, as one
+// sequence. Shared by both the script detail page's one-click button and the
+// "Generate Video" button on the create-script form. onStatus fires before
+// each step (for a progress label); onStep fires after each step succeeds
+// (so the caller can keep its own currentScript / render in sync live).
+async function generateApproveAndSubmit(script, { onStatus, onStep } = {}) {
+  onStatus?.("Generating prompt…");
+  let res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/generate`, { method: "POST" });
+  if (!res.ok) throw new StepError(await extractScriptError(res), script);
+  script = await res.json();
+  onStep?.(script);
+
+  if (script.stage === "blocked") {
+    // Stop here — never auto-approve/submit a prompt an SOP check blocked.
+    return script;
+  }
+
+  onStatus?.("Approving…");
+  const fd = new FormData();
+  fd.append("edited_prompt", script.generated_prompt);
+  res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/approve`, { method: "PUT", body: fd });
+  if (!res.ok) throw new StepError(await extractScriptError(res), script);
+  script = await res.json();
+  onStep?.(script);
+
+  onStatus?.("Submitting video…");
+  res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/submit-video`, { method: "POST" });
+  if (!res.ok) throw new StepError(await extractScriptError(res), script);
+  script = await res.json();
+  onStep?.(script);
+
+  return script;
+}
+
 async function runGenerateAndSubmitVideo(button) {
   if (!currentScript) return;
   const otherBtn = el("script-generate-first-btn");
@@ -479,43 +572,18 @@ async function runGenerateAndSubmitVideo(button) {
   otherBtn.disabled = true;
 
   try {
-    button.textContent = "Generating prompt…";
-    let res = await fetch(`${GENERATIONS_API_BASE}/${currentScript.id}/generate`, { method: "POST" });
-    if (!res.ok) {
-      alert(await extractScriptError(res));
-      return;
-    }
-    let script = await res.json();
-    currentScript = script;
-
-    if (script.stage === "blocked") {
-      // Stop here and show why — never auto-approve/submit a blocked prompt.
-      renderScriptDetail(script);
-      return;
-    }
-
-    button.textContent = "Approving…";
-    const fd = new FormData();
-    fd.append("edited_prompt", script.generated_prompt);
-    res = await fetch(`${GENERATIONS_API_BASE}/${currentScript.id}/approve`, { method: "PUT", body: fd });
-    if (!res.ok) {
-      alert(await extractScriptError(res));
-      renderScriptDetail(script);
-      return;
-    }
-    script = await res.json();
-    currentScript = script;
-
-    button.textContent = "Submitting video…";
-    res = await fetch(`${GENERATIONS_API_BASE}/${currentScript.id}/submit-video`, { method: "POST" });
-    if (!res.ok) {
-      alert(await extractScriptError(res));
-      renderScriptDetail(script);
-      return;
-    }
-    script = await res.json();
+    const script = await generateApproveAndSubmit(currentScript, {
+      onStatus: (text) => { button.textContent = text; },
+      onStep: (s) => { currentScript = s; },
+    });
     currentScript = script;
     renderScriptDetail(script);
+  } catch (e) {
+    if (e instanceof StepError) {
+      currentScript = e.script;
+      renderScriptDetail(e.script);
+    }
+    alert(e.message);
   } finally {
     button.disabled = false;
     button.textContent = originalText;

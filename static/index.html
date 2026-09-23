@@ -255,8 +255,14 @@
 
           <div class="form-actions">
             <button type="button" id="script-cancel-btn" class="btn btn-ghost">Cancel</button>
+            <button type="button" id="script-create-and-generate-btn" class="btn btn-ghost">Generate Video</button>
             <button type="submit" id="script-submit-btn" class="btn btn-primary">Create Script</button>
           </div>
+          <p class="hint">
+            "Create Script" just pairs the character and product, so you can review the prompt before
+            approving. "Generate Video" does everything in one go — creates the script, generates the
+            prompt, and (if it isn't blocked by an SOP check) approves it and submits the video immediately.
+          </p>
           <p id="script-form-error" class="error" hidden></p>
         </form>
       </section>
