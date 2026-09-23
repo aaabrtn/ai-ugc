@@ -12,11 +12,6 @@ def gen_id() -> str:
     return str(uuid.uuid4())
 
 
-class ConsentStatus(str, enum.Enum):
-    cleared = "cleared"
-    internal_only = "internal_only"
-
-
 class ImageKind(str, enum.Enum):
     identity = "identity"
     setting = "setting"
@@ -27,27 +22,13 @@ class Character(Base):
 
     id = Column(String, primary_key=True, default=gen_id)
     name = Column(String, nullable=False)
-    consent_status = Column(Enum(ConsentStatus), nullable=False, default=ConsentStatus.internal_only)
 
-    # Structured characteristics
-    face_shape = Column(String, default="")
-    hair_color = Column(String, default="")
-    hair_style = Column(String, default="")
-    hair_texture = Column(String, default="")
-    skin_tone = Column(String, default="")
-    eyes = Column(String, default="")
-    build = Column(String, default="")
-    signature_accessories = Column(String, default="")
-    tattoos = Column(String, default="")
-    default_expression = Column(String, default="")
-    characteristics_notes = Column(Text, default="")
+    # Free-text context only — physical traits are read directly from the
+    # reference photos, not entered as structured fields.
+    characteristics = Column(Text, default="")
 
-    # Setting — locked once first saved (see routers/characters.py)
-    setting_description = Column(Text, default="")
+    # Setting reference photos — locked once first saved (see routers/characters.py)
     setting_locked = Column(Boolean, default=False, nullable=False)
-
-    # Optional house-style movement override; blank = use SOP default
-    movement_notes = Column(Text, default="")
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

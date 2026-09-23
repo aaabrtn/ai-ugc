@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import DATA_DIR, get_db
-from app.models import Character, CharacterImage, ConsentStatus, ImageKind
+from app.models import Character, CharacterImage, ImageKind
 from app.schemas import CharacterOut, ImageOut
 
 router = APIRouter()
@@ -28,21 +28,8 @@ def character_to_out(c: Character) -> CharacterOut:
     return CharacterOut(
         id=c.id,
         name=c.name,
-        consent_status=c.consent_status,
-        face_shape=c.face_shape or "",
-        hair_color=c.hair_color or "",
-        hair_style=c.hair_style or "",
-        hair_texture=c.hair_texture or "",
-        skin_tone=c.skin_tone or "",
-        eyes=c.eyes or "",
-        build=c.build or "",
-        signature_accessories=c.signature_accessories or "",
-        tattoos=c.tattoos or "",
-        default_expression=c.default_expression or "",
-        characteristics_notes=c.characteristics_notes or "",
-        setting_description=c.setting_description or "",
+        characteristics=c.characteristics or "",
         setting_locked=c.setting_locked,
-        movement_notes=c.movement_notes or "",
         created_at=c.created_at,
         updated_at=c.updated_at,
         identity_images=[img_out(i) for i in c.identity_images],
@@ -86,56 +73,34 @@ def get_character(character_id: str, db: Session = Depends(get_db)):
 @router.post("", response_model=CharacterOut)
 def create_character(
     name: str = Form(...),
-    consent_status: ConsentStatus = Form(ConsentStatus.internal_only),
-    face_shape: str = Form(""),
-    hair_color: str = Form(""),
-    hair_style: str = Form(""),
-    hair_texture: str = Form(""),
-    skin_tone: str = Form(""),
-    eyes: str = Form(""),
-    build: str = Form(""),
-    signature_accessories: str = Form(""),
-    tattoos: str = Form(""),
-    default_expression: str = Form(""),
-    characteristics_notes: str = Form(""),
-    setting_description: str = Form(""),
-    movement_notes: str = Form(""),
+    characteristics: str = Form(""),
     identity_images: List[UploadFile] = File(default=[]),
     setting_images: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ):
-    if not name.strip():
+    name = name.strip()
+    identity_files = [f for f in identity_images if f.filename]
+    setting_files = [f for f in setting_images if f.filename]
+
+    if not name:
         raise HTTPException(400, "Name is required")
-    if not setting_description.strip():
-        raise HTTPException(400, "Setting description is required")
+    if not identity_files:
+        raise HTTPException(400, "At least one character reference photo is required")
+    if not setting_files:
+        raise HTTPException(400, "At least one settings reference photo is required")
 
     character = Character(
-        name=name.strip(),
-        consent_status=consent_status,
-        face_shape=face_shape,
-        hair_color=hair_color,
-        hair_style=hair_style,
-        hair_texture=hair_texture,
-        skin_tone=skin_tone,
-        eyes=eyes,
-        build=build,
-        signature_accessories=signature_accessories,
-        tattoos=tattoos,
-        default_expression=default_expression,
-        characteristics_notes=characteristics_notes,
-        setting_description=setting_description.strip(),
-        setting_locked=True,  # setting is locked as soon as it's first saved
-        movement_notes=movement_notes,
+        name=name,
+        characteristics=characteristics,
+        setting_locked=True,  # setting photos are locked as soon as they're first saved
     )
     db.add(character)
     db.flush()  # assign character.id before saving files against it
 
-    for f in identity_images:
-        if f.filename:
-            db.add(save_upload(character.id, "identity", f))
-    for f in setting_images:
-        if f.filename:
-            db.add(save_upload(character.id, "setting", f))
+    for f in identity_files:
+        db.add(save_upload(character.id, "identity", f))
+    for f in setting_files:
+        db.add(save_upload(character.id, "setting", f))
 
     db.commit()
     db.refresh(character)
@@ -146,20 +111,7 @@ def create_character(
 def update_character(
     character_id: str,
     name: str = Form(...),
-    consent_status: ConsentStatus = Form(...),
-    face_shape: str = Form(""),
-    hair_color: str = Form(""),
-    hair_style: str = Form(""),
-    hair_texture: str = Form(""),
-    skin_tone: str = Form(""),
-    eyes: str = Form(""),
-    build: str = Form(""),
-    signature_accessories: str = Form(""),
-    tattoos: str = Form(""),
-    default_expression: str = Form(""),
-    characteristics_notes: str = Form(""),
-    setting_description: str = Form(""),
-    movement_notes: str = Form(""),
+    characteristics: str = Form(""),
     confirm_setting_change: bool = Form(False),
     remove_image_ids: str = Form(""),
     identity_images: List[UploadFile] = File(default=[]),
@@ -169,7 +121,9 @@ def update_character(
     character = db.get(Character, character_id)
     if not character:
         raise HTTPException(404, "Character not found")
-    if not name.strip():
+
+    name = name.strip()
+    if not name:
         raise HTTPException(400, "Name is required")
 
     remove_ids = [i for i in remove_image_ids.split(",") if i]
@@ -180,41 +134,36 @@ def update_character(
         if remove_ids
         else []
     )
-    new_setting_images = [f for f in setting_images if f.filename]
+    new_identity_files = [f for f in identity_images if f.filename]
+    new_setting_files = [f for f in setting_images if f.filename]
 
-    setting_text_changed = setting_description.strip() and setting_description.strip() != (
-        character.setting_description or ""
-    ).strip()
-    setting_images_touched = bool(new_setting_images) or any(
+    setting_touched = bool(new_setting_files) or any(
         img.kind == ImageKind.setting for img in images_to_remove
     )
-
-    if character.setting_locked and (setting_text_changed or setting_images_touched) and not confirm_setting_change:
+    if character.setting_locked and setting_touched and not confirm_setting_change:
         raise HTTPException(
             409,
             "This character's setting is locked. This will change the look of all future videos with this "
             "character — confirm to proceed.",
         )
 
-    character.name = name.strip()
-    character.consent_status = consent_status
-    character.face_shape = face_shape
-    character.hair_color = hair_color
-    character.hair_style = hair_style
-    character.hair_texture = hair_texture
-    character.skin_tone = skin_tone
-    character.eyes = eyes
-    character.build = build
-    character.signature_accessories = signature_accessories
-    character.tattoos = tattoos
-    character.default_expression = default_expression
-    character.characteristics_notes = characteristics_notes
-    character.movement_notes = movement_notes
+    remaining_identity = (
+        len(character.identity_images)
+        - sum(1 for img in images_to_remove if img.kind == ImageKind.identity)
+        + len(new_identity_files)
+    )
+    remaining_setting = (
+        len(character.setting_images)
+        - sum(1 for img in images_to_remove if img.kind == ImageKind.setting)
+        + len(new_setting_files)
+    )
+    if remaining_identity < 1:
+        raise HTTPException(400, "Character must have at least one character reference photo")
+    if remaining_setting < 1:
+        raise HTTPException(400, "Character must have at least one settings reference photo")
 
-    if setting_text_changed:
-        character.setting_description = setting_description.strip()
-    if not character.setting_locked and setting_description.strip():
-        character.setting_description = setting_description.strip()
+    character.name = name
+    character.characteristics = characteristics
     character.setting_locked = True
 
     for img in images_to_remove:
@@ -223,10 +172,9 @@ def update_character(
             abs_path.unlink()
         db.delete(img)
 
-    for f in identity_images:
-        if f.filename:
-            db.add(save_upload(character.id, "identity", f))
-    for f in new_setting_images:
+    for f in new_identity_files:
+        db.add(save_upload(character.id, "identity", f))
+    for f in new_setting_files:
         db.add(save_upload(character.id, "setting", f))
 
     db.commit()

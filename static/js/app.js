@@ -7,17 +7,22 @@ const formView = el("character-form-view");
 const listEl = el("character-list");
 const emptyState = el("empty-state");
 const form = el("character-form");
-const formTitle = el("form-title");
+const formEyebrow = el("form-eyebrow");
 const formError = el("form-error");
 const deleteBtn = el("delete-btn");
 const unlockSettingBtn = el("unlock-setting-btn");
 const settingLockBadge = el("setting-lock-badge");
-const settingDescriptionInput = el("f-setting-description");
-const settingImagesInput = el("f-setting-images");
+
+const identityDropzone = el("identity-dropzone");
+const identityInput = el("f-identity-images");
+const settingDropzone = el("setting-dropzone");
+const settingInput = el("f-setting-images");
 
 let currentCharacter = null; // full character object when editing, null when creating
-let settingUnlocked = false; // whether the locked setting fields are currently editable
+let settingUnlocked = false; // whether the locked setting dropzone is currently editable
 let removedImageIds = new Set();
+
+// ---------- View switching ----------
 
 function showList() {
   formView.hidden = true;
@@ -29,6 +34,8 @@ function showForm() {
   listView.hidden = true;
   formView.hidden = false;
 }
+
+// ---------- List ----------
 
 async function loadCharacters() {
   const res = await fetch(API_BASE);
@@ -50,44 +57,148 @@ function renderCard(c) {
   if (c.identity_images.length) {
     const img = document.createElement("img");
     img.src = c.identity_images[0].url;
-    img.style.width = "100%";
-    img.style.height = "100%";
-    img.style.objectFit = "cover";
     thumb.appendChild(img);
   } else {
-    thumb.textContent = "No image";
+    thumb.textContent = "No photo";
   }
 
   const name = document.createElement("h3");
   name.textContent = c.name;
 
-  const badge = document.createElement("span");
-  badge.className = "badge " + (c.consent_status === "cleared" ? "badge-cleared" : "badge-internal");
-  badge.textContent = c.consent_status === "cleared" ? "Cleared" : "Internal only";
+  const excerpt = document.createElement("p");
+  excerpt.className = "char-excerpt";
+  excerpt.textContent = c.characteristics || "";
 
-  card.append(thumb, name, badge);
+  card.append(thumb, name, excerpt);
   return card;
 }
+
+// ---------- Drag-and-drop file inputs ----------
+
+function fileListFrom(files) {
+  const dt = new DataTransfer();
+  for (const f of files) dt.items.add(f);
+  return dt.files;
+}
+
+function pendingContainerFor(inputEl) {
+  return inputEl === identityInput ? el("identity-pending") : el("setting-pending");
+}
+
+function renderPendingFiles(inputEl) {
+  const container = pendingContainerFor(inputEl);
+  container.innerHTML = "";
+  const files = Array.from(inputEl.files);
+  files.forEach((file, idx) => {
+    const thumb = document.createElement("div");
+    thumb.className = "image-thumb";
+
+    const img = document.createElement("img");
+    img.src = URL.createObjectURL(file);
+    img.alt = file.name;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "remove-btn";
+    removeBtn.textContent = "×";
+    removeBtn.title = "Remove";
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const remaining = files.filter((_, i) => i !== idx);
+      inputEl.files = fileListFrom(remaining);
+      renderPendingFiles(inputEl);
+    });
+
+    thumb.append(img, removeBtn);
+    container.appendChild(thumb);
+  });
+}
+
+function setupDropzone(dropzoneEl, inputEl) {
+  dropzoneEl.addEventListener("dragover", (e) => {
+    if (inputEl.disabled) return;
+    e.preventDefault();
+    dropzoneEl.classList.add("dragover");
+  });
+  dropzoneEl.addEventListener("dragleave", (e) => {
+    if (e.target === dropzoneEl) dropzoneEl.classList.remove("dragover");
+  });
+  dropzoneEl.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dropzoneEl.classList.remove("dragover");
+    if (inputEl.disabled) return;
+    const dropped = Array.from(e.dataTransfer.files).filter((f) => f.type.startsWith("image/"));
+    if (!dropped.length) return;
+    const merged = Array.from(inputEl.files).concat(dropped);
+    inputEl.files = fileListFrom(merged);
+    renderPendingFiles(inputEl);
+  });
+  inputEl.addEventListener("change", () => renderPendingFiles(inputEl));
+}
+
+setupDropzone(identityDropzone, identityInput);
+setupDropzone(settingDropzone, settingInput);
+
+function renderExistingImages(containerId, images, dropzoneEl) {
+  const container = el(containerId);
+  container.innerHTML = "";
+  for (const img of images) {
+    const thumb = document.createElement("div");
+    thumb.className = "image-thumb";
+    thumb.dataset.imageId = img.id;
+
+    const imgTag = document.createElement("img");
+    imgTag.src = img.url;
+    imgTag.alt = img.original_filename;
+
+    const removeBtn = document.createElement("button");
+    removeBtn.type = "button";
+    removeBtn.className = "remove-btn";
+    removeBtn.textContent = "×";
+    removeBtn.title = "Remove image";
+    removeBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (removedImageIds.has(img.id)) {
+        removedImageIds.delete(img.id);
+        thumb.classList.remove("marked-removed");
+      } else {
+        removedImageIds.add(img.id);
+        thumb.classList.add("marked-removed");
+      }
+    });
+
+    thumb.append(imgTag, removeBtn);
+    container.appendChild(thumb);
+  }
+}
+
+// ---------- Form ----------
 
 function resetForm() {
   form.reset();
   el("character-id").value = "";
-  formTitle.textContent = "New Character";
+  formEyebrow.textContent = "New Character";
   deleteBtn.hidden = true;
   formError.hidden = true;
   currentCharacter = null;
-  settingUnlocked = true; // new characters: setting fields start editable
+  settingUnlocked = true; // new characters: setting dropzone starts editable
   removedImageIds = new Set();
+
   el("identity-images-existing").innerHTML = "";
+  el("identity-pending").innerHTML = "";
   el("setting-images-existing").innerHTML = "";
+  el("setting-pending").innerHTML = "";
+  identityInput.value = "";
+  settingInput.value = "";
+
   settingLockBadge.hidden = true;
   unlockSettingBtn.hidden = true;
-  setSettingFieldsDisabled(false);
+  setSettingLocked(false);
 }
 
-function setSettingFieldsDisabled(disabled) {
-  settingDescriptionInput.disabled = disabled;
-  settingImagesInput.disabled = disabled;
+function setSettingLocked(locked) {
+  settingInput.disabled = locked;
+  settingDropzone.classList.toggle("locked", locked);
 }
 
 function openNewForm() {
@@ -106,71 +217,26 @@ async function openEditForm(id) {
   currentCharacter = c;
 
   el("character-id").value = c.id;
-  formTitle.textContent = `Edit ${c.name}`;
+  formEyebrow.textContent = "Editing";
   deleteBtn.hidden = false;
 
   el("f-name").value = c.name;
-  el("f-consent-status").value = c.consent_status;
-  el("f-face-shape").value = c.face_shape;
-  el("f-hair-color").value = c.hair_color;
-  el("f-hair-style").value = c.hair_style;
-  el("f-hair-texture").value = c.hair_texture;
-  el("f-skin-tone").value = c.skin_tone;
-  el("f-eyes").value = c.eyes;
-  el("f-build").value = c.build;
-  el("f-signature-accessories").value = c.signature_accessories;
-  el("f-tattoos").value = c.tattoos;
-  el("f-default-expression").value = c.default_expression;
-  el("f-characteristics-notes").value = c.characteristics_notes;
-  el("f-setting-description").value = c.setting_description;
-  el("f-movement-notes").value = c.movement_notes;
+  el("f-characteristics").value = c.characteristics;
 
-  renderExistingImages("identity-images-existing", c.identity_images);
-  renderExistingImages("setting-images-existing", c.setting_images);
+  renderExistingImages("identity-images-existing", c.identity_images, identityDropzone);
+  renderExistingImages("setting-images-existing", c.setting_images, settingDropzone);
 
   if (c.setting_locked) {
     settingLockBadge.hidden = false;
     unlockSettingBtn.hidden = false;
     settingUnlocked = false;
-    setSettingFieldsDisabled(true);
+    setSettingLocked(true);
   } else {
     settingUnlocked = true;
-    setSettingFieldsDisabled(false);
+    setSettingLocked(false);
   }
 
   showForm();
-}
-
-function renderExistingImages(containerId, images) {
-  const container = el(containerId);
-  container.innerHTML = "";
-  for (const img of images) {
-    const thumb = document.createElement("div");
-    thumb.className = "image-thumb";
-    thumb.dataset.imageId = img.id;
-
-    const imgTag = document.createElement("img");
-    imgTag.src = img.url;
-    imgTag.alt = img.original_filename;
-
-    const removeBtn = document.createElement("button");
-    removeBtn.type = "button";
-    removeBtn.className = "remove-btn";
-    removeBtn.textContent = "×";
-    removeBtn.title = "Remove image";
-    removeBtn.addEventListener("click", () => {
-      if (removedImageIds.has(img.id)) {
-        removedImageIds.delete(img.id);
-        thumb.classList.remove("marked-removed");
-      } else {
-        removedImageIds.add(img.id);
-        thumb.classList.add("marked-removed");
-      }
-    });
-
-    thumb.append(imgTag, removeBtn);
-    container.appendChild(thumb);
-  }
 }
 
 unlockSettingBtn.addEventListener("click", () => {
@@ -179,11 +245,12 @@ unlockSettingBtn.addEventListener("click", () => {
   );
   if (confirmed) {
     settingUnlocked = true;
-    setSettingFieldsDisabled(false);
+    setSettingLocked(false);
   }
 });
 
 el("new-character-btn").addEventListener("click", openNewForm);
+el("empty-new-btn").addEventListener("click", openNewForm);
 el("cancel-btn").addEventListener("click", showList);
 
 deleteBtn.addEventListener("click", async () => {
@@ -197,6 +264,22 @@ deleteBtn.addEventListener("click", async () => {
   }
 });
 
+function activeImageCount(existingContainerId, inputEl) {
+  const remaining = Array.from(el(existingContainerId).querySelectorAll(".image-thumb")).filter(
+    (t) => !removedImageIds.has(t.dataset.imageId)
+  ).length;
+  return remaining + inputEl.files.length;
+}
+
+function buildFormData() {
+  const fd = new FormData();
+  fd.append("name", el("f-name").value.trim());
+  fd.append("characteristics", el("f-characteristics").value);
+  for (const file of identityInput.files) fd.append("identity_images", file);
+  for (const file of settingInput.files) fd.append("setting_images", file);
+  return fd;
+}
+
 form.addEventListener("submit", async (e) => {
   e.preventDefault();
   formError.hidden = true;
@@ -206,35 +289,16 @@ form.addEventListener("submit", async (e) => {
     showFormError("Name is required.");
     return;
   }
-  if (!currentCharacter && !settingDescriptionInput.value.trim()) {
-    showFormError("Setting description is required for a new character.");
+  if (activeImageCount("identity-images-existing", identityInput) < 1) {
+    showFormError("At least one character reference photo is required.");
+    return;
+  }
+  if (activeImageCount("setting-images-existing", settingInput) < 1) {
+    showFormError("At least one settings reference photo is required.");
     return;
   }
 
-  const fd = new FormData();
-  fd.append("name", name);
-  fd.append("consent_status", el("f-consent-status").value);
-  fd.append("face_shape", el("f-face-shape").value);
-  fd.append("hair_color", el("f-hair-color").value);
-  fd.append("hair_style", el("f-hair-style").value);
-  fd.append("hair_texture", el("f-hair-texture").value);
-  fd.append("skin_tone", el("f-skin-tone").value);
-  fd.append("eyes", el("f-eyes").value);
-  fd.append("build", el("f-build").value);
-  fd.append("signature_accessories", el("f-signature-accessories").value);
-  fd.append("tattoos", el("f-tattoos").value);
-  fd.append("default_expression", el("f-default-expression").value);
-  fd.append("characteristics_notes", el("f-characteristics-notes").value);
-  fd.append("setting_description", settingDescriptionInput.value);
-  fd.append("movement_notes", el("f-movement-notes").value);
-
-  for (const file of el("f-identity-images").files) {
-    fd.append("identity_images", file);
-  }
-  for (const file of settingImagesInput.files) {
-    fd.append("setting_images", file);
-  }
-
+  const fd = buildFormData();
   let url = API_BASE;
   let method = "POST";
 
@@ -259,7 +323,6 @@ form.addEventListener("submit", async (e) => {
         return;
       }
       showList();
-      return;
     }
     return;
   }

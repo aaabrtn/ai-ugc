@@ -4,96 +4,87 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AI UGC Character Manager</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/css/style.css" />
 </head>
 <body>
   <header class="topbar">
-    <h1>AI UGC &mdash; Character Manager</h1>
+    <div class="brand">
+      <span class="brand-mark">AI</span>
+      <div>
+        <h1>Character Manager</h1>
+        <p class="brand-sub">AI UGC Generator</p>
+      </div>
+    </div>
     <button id="new-character-btn" class="btn btn-primary">+ New Character</button>
   </header>
 
   <main>
     <section id="character-list-view">
       <div id="character-list" class="character-grid"></div>
-      <p id="empty-state" class="empty-state" hidden>
-        No characters yet. Click &ldquo;+ New Character&rdquo; to create your first one.
-      </p>
+      <div id="empty-state" class="empty-state" hidden>
+        <p class="empty-title">No characters yet</p>
+        <p class="empty-sub">Create your first character to get started.</p>
+        <button type="button" class="btn btn-primary" id="empty-new-btn">+ New Character</button>
+      </div>
     </section>
 
     <section id="character-form-view" hidden>
-      <form id="character-form" novalidate>
+      <form id="character-form" class="character-form" novalidate>
         <input type="hidden" id="character-id" />
+
         <div class="form-header">
-          <h2 id="form-title">New Character</h2>
-          <button type="button" id="delete-btn" class="btn btn-danger" hidden>Delete Character</button>
+          <div>
+            <p class="eyebrow" id="form-eyebrow">New Character</p>
+            <input type="text" id="f-name" class="name-input" placeholder="Character name" required />
+          </div>
+          <button type="button" id="delete-btn" class="btn btn-danger-ghost" hidden>Delete</button>
         </div>
 
-        <fieldset>
-          <legend>Basic Info</legend>
-          <label>Name
-            <input type="text" id="f-name" required />
-          </label>
-          <label>Consent status
-            <select id="f-consent-status">
-              <option value="internal_only">Internal only — video generation will be blocked</option>
-              <option value="cleared">Cleared — consent on file</option>
-            </select>
-          </label>
-        </fieldset>
+        <div class="form-grid">
+          <section class="field-card">
+            <h3>Character reference photos</h3>
+            <p class="hint">Clear photos of the character. Her identity — face, hair, skin tone, build — is read directly from these images.</p>
+            <div class="dropzone" id="identity-dropzone">
+              <div id="identity-images-existing" class="image-grid"></div>
+              <div id="identity-pending" class="image-grid"></div>
+              <label class="dropzone-tile" for="f-identity-images">
+                <span class="dropzone-icon">+</span>
+                <span>Add</span>
+              </label>
+              <input type="file" id="f-identity-images" accept="image/*" multiple hidden />
+            </div>
+          </section>
 
-        <fieldset>
-          <legend>Identity Reference Images</legend>
-          <div id="identity-images-existing" class="image-grid"></div>
-          <label>Add images
-            <input type="file" id="f-identity-images" accept="image/*" multiple />
-          </label>
-        </fieldset>
+          <section class="field-card" id="setting-section">
+            <div class="field-card-head">
+              <h3>Settings reference photos</h3>
+              <span id="setting-lock-badge" class="badge badge-locked" hidden>&#128274; Locked</span>
+            </div>
+            <p class="hint">The permanent filming location. Locked once saved — changing it changes the look of every future video with this character.</p>
+            <div class="dropzone" id="setting-dropzone">
+              <div id="setting-images-existing" class="image-grid"></div>
+              <div id="setting-pending" class="image-grid"></div>
+              <label class="dropzone-tile" for="f-setting-images">
+                <span class="dropzone-icon">+</span>
+                <span>Add</span>
+              </label>
+              <input type="file" id="f-setting-images" accept="image/*" multiple hidden />
+            </div>
+            <button type="button" id="unlock-setting-btn" class="btn btn-warning" hidden>Edit locked setting&hellip;</button>
+          </section>
 
-        <fieldset>
-          <legend>Characteristics</legend>
-          <div class="grid-2">
-            <label>Face shape <input type="text" id="f-face-shape" /></label>
-            <label>Hair color <input type="text" id="f-hair-color" /></label>
-            <label>Hair style <input type="text" id="f-hair-style" /></label>
-            <label>Hair texture <input type="text" id="f-hair-texture" /></label>
-            <label>Skin tone <input type="text" id="f-skin-tone" /></label>
-            <label>Eyes <input type="text" id="f-eyes" /></label>
-            <label>Build / physique <input type="text" id="f-build" /></label>
-            <label>Signature accessories <input type="text" id="f-signature-accessories" /></label>
-            <label>Tattoos <input type="text" id="f-tattoos" /></label>
-            <label>Default expression <input type="text" id="f-default-expression" /></label>
-          </div>
-          <label>Other characteristics (free text)
-            <textarea id="f-characteristics-notes" rows="3"></textarea>
-          </label>
-        </fieldset>
-
-        <fieldset id="setting-fieldset">
-          <legend>Setting <span id="setting-lock-badge" class="badge" hidden>&#128274; Locked</span></legend>
-          <p class="hint">
-            The permanent filming location for this character (room, mirror, background, lighting).
-            Locked once saved — changing it changes the look of every future video with this character.
-          </p>
-          <div id="setting-images-existing" class="image-grid"></div>
-          <label>Setting reference images
-            <input type="file" id="f-setting-images" accept="image/*" multiple />
-          </label>
-          <label>Setting description
-            <textarea id="f-setting-description" rows="4"></textarea>
-          </label>
-          <button type="button" id="unlock-setting-btn" class="btn btn-warning" hidden>
-            Edit locked setting&hellip;
-          </button>
-        </fieldset>
-
-        <fieldset>
-          <legend>Movement Notes (optional)</legend>
-          <p class="hint">Leave blank to use the SOP default 5-cut movement pattern for this character.</p>
-          <textarea id="f-movement-notes" rows="3"></textarea>
-        </fieldset>
+          <section class="field-card">
+            <h3>Characteristics</h3>
+            <p class="hint">Optional additional context — the reference photos already do most of the work.</p>
+            <textarea id="f-characteristics" rows="4" placeholder="e.g. freckles across the nose, small gold hoop earrings, soft natural smile..."></textarea>
+          </section>
+        </div>
 
         <div class="form-actions">
-          <button type="button" id="cancel-btn" class="btn">Cancel</button>
+          <button type="button" id="cancel-btn" class="btn btn-ghost">Cancel</button>
           <button type="submit" class="btn btn-primary">Save Character</button>
         </div>
         <p id="form-error" class="error" hidden></p>

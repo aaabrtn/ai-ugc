@@ -46,9 +46,9 @@ data/                       SQLite DB + uploaded images (gitignored, created at 
 
 ## Notes on the Character model
 
-- `consent_status`: `cleared` or `internal_only`. From Phase 3 onward, `internal_only` characters can still generate prompts for review, but the "Generate Video" button is disabled with a warning.
-- `setting` (description + reference images) is **locked as soon as a character is first saved**. Editing it later requires an explicit confirm step in the UI, since it changes the look of every future video with that character.
-- `movement_notes` is optional — blank means the app uses the SOP's default 5-cut movement pattern (Phase 2+).
+A character has exactly four inputs: **name**, **characteristics** (free text), **character reference photos**, and **settings reference photos**. Physical traits (face, hair, skin tone, build, etc.) are read directly from the reference photos rather than entered as structured fields — `characteristics` is just additional context on top of that.
+
+- `setting` (reference photos of the filming location) is **locked as soon as a character is first saved**. Editing it later requires an explicit confirm step in the UI, since it changes the look of every future video with that character.
 
 ## What's needed from Andrew before later phases
 

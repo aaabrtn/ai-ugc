@@ -3,7 +3,7 @@ from typing import List
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import ConsentStatus, ImageKind
+from app.models import ImageKind
 
 
 class ImageOut(BaseModel):
@@ -18,24 +18,8 @@ class ImageOut(BaseModel):
 class CharacterOut(BaseModel):
     id: str
     name: str
-    consent_status: ConsentStatus
-
-    face_shape: str
-    hair_color: str
-    hair_style: str
-    hair_texture: str
-    skin_tone: str
-    eyes: str
-    build: str
-    signature_accessories: str
-    tattoos: str
-    default_expression: str
-    characteristics_notes: str
-
-    setting_description: str
+    characteristics: str
     setting_locked: bool
-
-    movement_notes: str
 
     created_at: datetime
     updated_at: datetime
