@@ -112,15 +112,36 @@ function renderJobCard(job) {
 
   const url = document.createElement("p");
   url.className = "job-card-url";
-  url.textContent = job.source_url || "Manual upload";
+  url.textContent = `${job.source_url || "Manual upload"} · ${formatDate(job.created_at)}`;
 
   const badge = document.createElement("span");
-  badge.className = "badge " + (job.fetch_status === "success" ? "badge-ok" : "badge-fail");
-  badge.textContent = job.fetch_status === "success" ? "Fetched" : "Failed";
+  if (job.fetch_status === "failed") {
+    badge.className = "badge badge-fail";
+    badge.textContent = "Failed";
+  } else if (job.stage === "approved") {
+    badge.className = "badge badge-ok";
+    badge.textContent = "Approved";
+  } else if (job.stage === "blocked") {
+    badge.className = "badge badge-fail";
+    badge.textContent = "Blocked";
+  } else if (job.stage === "prompt_generated") {
+    badge.className = "badge badge-muted";
+    badge.textContent = "Draft prompt";
+  } else {
+    badge.className = "badge badge-ok";
+    badge.textContent = "Fetched";
+  }
 
   body.append(title, url, badge);
   card.append(thumb, body);
   return card;
+}
+
+function formatDate(isoString) {
+  // Server timestamps are naive UTC (no offset in the string) -- append "Z" so the
+  // browser doesn't misinterpret them as local time.
+  const d = new Date(isoString.endsWith("Z") ? isoString : `${isoString}Z`);
+  return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
 // ---------- Form ----------
@@ -261,6 +282,10 @@ function renderJobDetail(job) {
   currentJob = job;
   el("job-detail-eyebrow").textContent = job.character.name;
   el("job-detail-title").textContent = job.product_title || (job.source_url || "Manually uploaded product");
+  el("job-detail-date").textContent = "Fetched " + formatDate(job.created_at);
+
+  const rerunBtn = el("job-rerun-btn");
+  rerunBtn.hidden = !job.source_url;
 
   const banner = el("job-detail-banner");
   if (job.fetch_status === "failed") {
@@ -432,5 +457,28 @@ el("job-delete-btn").addEventListener("click", async () => {
     showJobList();
   } else {
     alert("Failed to delete product.");
+  }
+});
+
+el("job-rerun-btn").addEventListener("click", async () => {
+  if (!currentJob || !currentJob.source_url) return;
+  if (!confirm("Re-fetch this product from its URL as a new entry? The current one is kept as-is.")) return;
+  const btn = el("job-rerun-btn");
+  btn.disabled = true;
+  btn.textContent = "Re-running…";
+  try {
+    const fd = new FormData();
+    fd.append("character_id", currentJob.character_id);
+    fd.append("source_url", currentJob.source_url);
+    const res = await fetch(JOBS_API_BASE, { method: "POST", body: fd });
+    if (!res.ok) {
+      alert(await extractJobError(res));
+      return;
+    }
+    const job = await res.json();
+    showJobDetail(job);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Re-run…";
   }
 });

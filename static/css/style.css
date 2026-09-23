@@ -238,6 +238,12 @@ main {
   gap: 1rem;
 }
 
+.detail-header-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .eyebrow {
   margin: 0 0 0.35rem;
   font-size: 0.75rem;

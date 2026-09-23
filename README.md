@@ -8,9 +8,9 @@ Built in phases per `AIUGC_CLAUDE_CODE_PROJECT_SPEC.md`. See **Status** below fo
 
 - [x] **Phase 1 — Character Manager**: create, view, edit, delete characters. Setting is locked once first saved; editing it requires an explicit confirmation.
 - [x] **Phase 2 — Product fetch → SOP-validated prompt**: give a character a product URL (or manual photos), fetch product images, then generate a full SOP-compliant video prompt from AI-vision-read character/setting/garment photos, with automated SOP checks and an editable review/approve step. See below for both halves.
-- [ ] Phase 3 — KIE API video generation
-- [ ] Phase 4 — Google Drive save
-- [ ] Phase 5 — Job history
+- [ ] Phase 3 — KIE API video generation (blocked — needs a KIE API key and the endpoint/response shape, see below)
+- [ ] Phase 4 — Google Drive save (blocked — needs Google Drive credentials, see below)
+- [x] **Phase 5 — Job history**: the Products tab is the job history — character used, product URL, status, date, on every card. Click a card to re-open its prompt; **Re-run** re-fetches the same URL for the same character as a new entry. (Drive link column arrives with Phase 4.)
 
 ## Setup
 
