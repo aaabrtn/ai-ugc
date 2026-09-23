@@ -291,7 +291,14 @@
           <section class="field-card" id="script-detail-generate-section">
             <h3>Video prompt</h3>
             <p class="hint">Uses AI vision to read the character, setting, and garment photos and assemble a full SOP-validated video prompt.</p>
-            <button type="button" id="script-generate-first-btn" class="btn btn-primary">Generate Prompt</button>
+            <div class="prompt-actions prompt-actions-start">
+              <button type="button" id="script-generate-first-btn" class="btn btn-primary">Generate Prompt</button>
+              <button type="button" id="script-generate-and-video-btn" class="btn btn-ghost">Generate Prompt + Video</button>
+            </div>
+            <p class="hint" id="script-generate-and-video-hint">
+              Skips the review step — generates the prompt and, if it isn't blocked by an SOP check, approves it
+              as-is and submits the video immediately. Use once you're confident the prompt will come out clean.
+            </p>
           </section>
 
           <section class="field-card" id="script-detail-video-section" hidden>

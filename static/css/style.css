@@ -638,6 +638,10 @@ input[type="url"]:focus { outline: none; border-color: var(--accent); background
   justify-content: flex-end;
   gap: 0.75rem;
 }
+.prompt-actions-start {
+  justify-content: flex-start;
+  margin-bottom: 0.5rem;
+}
 
 /* ---------- Video ---------- */
 

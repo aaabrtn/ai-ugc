@@ -507,7 +507,60 @@ async function runGenerate(button) {
   }
 }
 
+async function runGenerateAndSubmitVideo(button) {
+  if (!currentScript) return;
+  const otherBtn = el("script-generate-first-btn");
+  const originalText = button.textContent;
+  button.disabled = true;
+  otherBtn.disabled = true;
+
+  try {
+    button.textContent = "Generating prompt…";
+    let res = await fetch(`${GENERATIONS_API_BASE}/${currentScript.id}/generate`, { method: "POST" });
+    if (!res.ok) {
+      alert(await extractScriptError(res));
+      return;
+    }
+    let script = await res.json();
+    currentScript = script;
+
+    if (script.stage === "blocked") {
+      // Stop here and show why — never auto-approve/submit a blocked prompt.
+      renderScriptDetail(script);
+      return;
+    }
+
+    button.textContent = "Approving…";
+    const fd = new FormData();
+    fd.append("edited_prompt", script.generated_prompt);
+    res = await fetch(`${GENERATIONS_API_BASE}/${currentScript.id}/approve`, { method: "PUT", body: fd });
+    if (!res.ok) {
+      alert(await extractScriptError(res));
+      renderScriptDetail(script);
+      return;
+    }
+    script = await res.json();
+    currentScript = script;
+
+    button.textContent = "Submitting video…";
+    res = await fetch(`${GENERATIONS_API_BASE}/${currentScript.id}/submit-video`, { method: "POST" });
+    if (!res.ok) {
+      alert(await extractScriptError(res));
+      renderScriptDetail(script);
+      return;
+    }
+    script = await res.json();
+    currentScript = script;
+    renderScriptDetail(script);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+    otherBtn.disabled = false;
+  }
+}
+
 el("script-generate-first-btn").addEventListener("click", (e) => runGenerate(e.currentTarget));
+el("script-generate-and-video-btn").addEventListener("click", (e) => runGenerateAndSubmitVideo(e.currentTarget));
 el("script-generate-btn").addEventListener("click", (e) => {
   if (!confirm("Regenerate this prompt? Any edits you've made will be discarded.")) return;
   runGenerate(e.currentTarget);
