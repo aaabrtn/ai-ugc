@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import FetchStatus, ImageKind, JobStage
+from app.models import FetchStatus, ImageKind, JobStage, VideoStatus
 
 
 class ImageOut(BaseModel):
@@ -24,6 +24,9 @@ class CharacterOut(BaseModel):
     persona_description: str
     setting_description: str
 
+    kie_character_id: str
+    kie_character_has_body: bool
+
     created_at: datetime
     updated_at: datetime
 
@@ -38,6 +41,7 @@ class CharacterSummaryOut(BaseModel):
 
     id: str
     name: str
+    kie_character_id: str
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -83,6 +87,11 @@ class JobOut(BaseModel):
     garment_analysis: Optional[GarmentAnalysisOut]
     generated_prompt: str
     sop_check_results: List[SopCheckOut]
+
+    kie_task_id: str
+    video_status: VideoStatus
+    video_error: str
+    video_url: str  # the app's own locally-served copy, once downloaded
 
     created_at: datetime
 

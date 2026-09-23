@@ -89,6 +89,18 @@
               <p class="hint">Optional additional context — the reference photos already do most of the work.</p>
               <textarea id="f-characteristics" rows="4" placeholder="e.g. freckles across the nose, small gold hoop earrings, soft natural smile..."></textarea>
             </section>
+
+            <section class="field-card">
+              <h3>KIE Character ID <span class="hint-inline">(for video generation)</span></h3>
+              <p class="hint">Created once in KIE's own dashboard, then pasted here — required before this character can generate a video.</p>
+              <label>Character ID
+                <input type="text" id="f-kie-character-id" placeholder="e.g. b09dbf56..." />
+              </label>
+              <label class="checkbox-label">
+                <input type="checkbox" id="f-kie-has-body" checked />
+                <span>Registered with a body reference photo (not just a portrait)</span>
+              </label>
+            </section>
           </div>
 
           <div class="form-actions">
@@ -200,6 +212,16 @@
             <h3>Video prompt</h3>
             <p class="hint">Uses AI vision to read the character, setting, and garment photos and assemble a full SOP-validated video prompt.</p>
             <button type="button" id="job-generate-first-btn" class="btn btn-primary">Generate Prompt</button>
+          </section>
+
+          <section class="field-card" id="job-detail-video-section" hidden>
+            <div class="field-card-head">
+              <h3>Video</h3>
+              <span id="job-video-status-badge" class="badge badge-muted"></span>
+            </div>
+            <p class="hint" id="job-video-hint">&nbsp;</p>
+            <video id="job-video-player" controls hidden></video>
+            <button type="button" id="job-submit-video-btn" class="btn btn-primary">Generate Video</button>
           </section>
         </div>
 

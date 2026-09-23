@@ -37,6 +37,15 @@ class Character(Base):
     persona_description = Column(Text, default="")
     setting_description = Column(Text, default="")
 
+    # KIE character reference (Gemini Omni). Not created via our API — KIE requires
+    # publicly-hosted images to register a character, which our locally-uploaded
+    # photos aren't; instead this is entered manually once you've created the
+    # character in KIE's own dashboard/playground. Required for video generation.
+    kie_character_id = Column(String, default="")
+    # Whether that KIE character was registered with a body reference image (not
+    # just a portrait) — affects how much of KIE's 7-slot input quota it reserves.
+    kie_character_has_body = Column(Boolean, default=True, nullable=False)
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -81,9 +90,18 @@ class JobStage(str, enum.Enum):
     approved = "approved"  # Andrew approved the (possibly edited) prompt
 
 
+class VideoStatus(str, enum.Enum):
+    not_started = "not_started"
+    waiting = "waiting"  # KIE's own states, used as-is once submitted
+    queuing = "queuing"
+    generating = "generating"
+    success = "success"
+    fail = "fail"
+
+
 class Job(Base):
-    """A single product → video attempt. Phases 3+ add KIE submission and Drive
-    upload on top of this row."""
+    """A single product → video attempt. Phase 4 adds Drive upload of the
+    finished video on top of this row."""
 
     __tablename__ = "jobs"
 
@@ -102,6 +120,19 @@ class Job(Base):
     garment_analysis_json = Column(Text, default="")  # JSON-encoded GarmentAnalysis, for display/debugging
     generated_prompt = Column(Text, default="")
     sop_check_results_json = Column(Text, default="")  # JSON-encoded list of check results
+
+    # Video generation (Phase 3)
+    kie_task_id = Column(String, default="")
+    kie_model_used = Column(String, default="")
+    video_status = Column(Enum(VideoStatus), nullable=False, default=VideoStatus.not_started)
+    video_error = Column(Text, default="")
+    video_submitted_at = Column(DateTime, nullable=True)
+    # KIE's result URL expires ~24h after generation, so the video is downloaded
+    # locally as soon as success is detected — video_local_path is what actually
+    # gets played back and, later, uploaded to Drive. video_result_url is kept only
+    # for reference/debugging.
+    video_result_url = Column(Text, default="")
+    video_local_path = Column(String, default="")
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

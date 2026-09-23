@@ -222,6 +222,8 @@ async function openEditForm(id) {
 
   el("f-name").value = c.name;
   el("f-characteristics").value = c.characteristics;
+  el("f-kie-character-id").value = c.kie_character_id;
+  el("f-kie-has-body").checked = c.kie_character_has_body;
 
   renderExistingImages("identity-images-existing", c.identity_images, identityDropzone);
   renderExistingImages("setting-images-existing", c.setting_images, settingDropzone);
@@ -275,6 +277,8 @@ function buildFormData() {
   const fd = new FormData();
   fd.append("name", el("f-name").value.trim());
   fd.append("characteristics", el("f-characteristics").value);
+  fd.append("kie_character_id", el("f-kie-character-id").value.trim());
+  fd.append("kie_character_has_body", el("f-kie-has-body").checked ? "true" : "false");
   for (const file of identityInput.files) fd.append("identity_images", file);
   for (const file of settingInput.files) fd.append("setting_images", file);
   return fd;

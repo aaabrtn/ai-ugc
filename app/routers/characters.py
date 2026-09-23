@@ -32,6 +32,8 @@ def character_to_out(c: Character) -> CharacterOut:
         setting_locked=c.setting_locked,
         persona_description=c.persona_description or "",
         setting_description=c.setting_description or "",
+        kie_character_id=c.kie_character_id or "",
+        kie_character_has_body=c.kie_character_has_body,
         created_at=c.created_at,
         updated_at=c.updated_at,
         identity_images=[img_out(i) for i in c.identity_images],
@@ -76,6 +78,8 @@ def get_character(character_id: str, db: Session = Depends(get_db)):
 def create_character(
     name: str = Form(...),
     characteristics: str = Form(""),
+    kie_character_id: str = Form(""),
+    kie_character_has_body: bool = Form(True),
     identity_images: List[UploadFile] = File(default=[]),
     setting_images: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
@@ -94,6 +98,8 @@ def create_character(
     character = Character(
         name=name,
         characteristics=characteristics,
+        kie_character_id=kie_character_id.strip(),
+        kie_character_has_body=kie_character_has_body,
         setting_locked=True,  # setting photos are locked as soon as they're first saved
     )
     db.add(character)
@@ -114,6 +120,8 @@ def update_character(
     character_id: str,
     name: str = Form(...),
     characteristics: str = Form(""),
+    kie_character_id: str = Form(""),
+    kie_character_has_body: bool = Form(True),
     confirm_setting_change: bool = Form(False),
     remove_image_ids: str = Form(""),
     identity_images: List[UploadFile] = File(default=[]),
@@ -169,6 +177,8 @@ def update_character(
 
     character.name = name
     character.characteristics = characteristics
+    character.kie_character_id = kie_character_id.strip()
+    character.kie_character_has_body = kie_character_has_body
     character.setting_locked = True
 
     # Cached AI-vision descriptions go stale the moment their source photos change;

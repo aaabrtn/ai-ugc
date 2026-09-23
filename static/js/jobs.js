@@ -37,6 +37,8 @@ function switchTab(tab) {
   el("products-tab").hidden = tab !== "products";
   if (tab === "products") {
     showJobList();
+  } else {
+    stopPolling();
   }
 }
 
@@ -47,6 +49,7 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
 // ---------- View switching ----------
 
 function showJobList() {
+  stopPolling();
   jobFormView.hidden = true;
   jobDetailView.hidden = true;
   jobListView.hidden = false;
@@ -54,6 +57,7 @@ function showJobList() {
 }
 
 function showJobForm() {
+  stopPolling();
   jobListView.hidden = true;
   jobDetailView.hidden = true;
   jobFormView.hidden = false;
@@ -337,6 +341,7 @@ function renderJobDetail(job) {
   }
 
   renderPromptSection(job);
+  renderVideoSection(job);
 }
 
 const STAGE_LABELS = {
@@ -402,6 +407,114 @@ function renderPromptSection(job) {
     approveBtn.disabled = job.stage === "approved";
   }
 }
+
+const VIDEO_STATUS_LABELS = {
+  not_started: "Not started",
+  waiting: "Queued",
+  queuing: "Queued",
+  generating: "Generating…",
+  success: "Complete",
+  fail: "Failed",
+};
+
+let pollTimer = null;
+let pollAttempt = 0;
+
+function stopPolling() {
+  if (pollTimer) clearTimeout(pollTimer);
+  pollTimer = null;
+  pollAttempt = 0;
+}
+
+function renderVideoSection(job) {
+  const section = el("job-detail-video-section");
+  stopPolling();
+
+  if (job.stage !== "approved") {
+    section.hidden = true;
+    return;
+  }
+  section.hidden = false;
+
+  const badge = el("job-video-status-badge");
+  const hint = el("job-video-hint");
+  const player = el("job-video-player");
+  const submitBtn = el("job-submit-video-btn");
+
+  badge.textContent = VIDEO_STATUS_LABELS[job.video_status] || job.video_status;
+  badge.className =
+    "badge " +
+    (job.video_status === "success" ? "badge-ok" : job.video_status === "fail" ? "badge-fail" : "badge-muted");
+
+  if (job.video_status === "not_started") {
+    hint.textContent = "Submits the approved prompt, the character, and its setting/garment reference photos to KIE.";
+    submitBtn.hidden = false;
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Generate Video";
+    player.hidden = true;
+  } else if (job.video_status === "success") {
+    hint.textContent = "Done.";
+    submitBtn.hidden = true;
+    player.hidden = false;
+    player.src = job.video_url;
+  } else if (job.video_status === "fail") {
+    hint.textContent = job.video_error || "Generation failed.";
+    submitBtn.hidden = false;
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Try Again";
+    player.hidden = true;
+  } else {
+    // waiting / queuing / generating
+    hint.textContent = "This can take a few minutes — status updates automatically.";
+    submitBtn.hidden = true;
+    player.hidden = true;
+    schedulePoll(job.id);
+  }
+}
+
+function schedulePoll(jobId) {
+  const delay = Math.min(3000 * Math.pow(1.4, pollAttempt), 15000);
+  pollAttempt += 1;
+  pollTimer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${JOBS_API_BASE}/${jobId}/video-status`);
+      if (!res.ok) {
+        // transient poll failure -- keep retrying rather than treating it as final
+        schedulePoll(jobId);
+        return;
+      }
+      const job = await res.json();
+      if (currentJob && currentJob.id === job.id) {
+        currentJob = job;
+        renderVideoSection(job);
+      }
+    } catch {
+      schedulePoll(jobId);
+    }
+  }, delay);
+}
+
+el("job-submit-video-btn").addEventListener("click", async () => {
+  if (!currentJob) return;
+  const btn = el("job-submit-video-btn");
+  btn.disabled = true;
+  btn.textContent = "Submitting…";
+  try {
+    const res = await fetch(`${JOBS_API_BASE}/${currentJob.id}/submit-video`, { method: "POST" });
+    if (!res.ok) {
+      alert(await extractJobError(res));
+      btn.disabled = false;
+      btn.textContent = "Generate Video";
+      return;
+    }
+    const job = await res.json();
+    currentJob = job;
+    renderVideoSection(job);
+  } catch {
+    btn.disabled = false;
+    btn.textContent = "Generate Video";
+  }
+});
 
 async function runGenerate(button) {
   if (!currentJob) return;

@@ -7,3 +7,5 @@ httpx
 beautifulsoup4
 playwright
 anthropic
+google-api-python-client
+google-auth
