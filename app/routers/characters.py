@@ -238,7 +238,7 @@ def register_kie_character(character_id: str, db: Session = Depends(get_db)):
     try:
         if not character.persona_description:
             identity_paths = [UPLOADS_DIR / img.file_path for img in character.identity_images]
-            character.persona_description = analyze_persona(identity_paths)
+            character.persona_description, _ = analyze_persona(identity_paths)
     except VisionNotConfigured as e:
         raise HTTPException(422, str(e)) from e
     except VisionError as e:

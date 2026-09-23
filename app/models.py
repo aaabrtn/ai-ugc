@@ -2,7 +2,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import Boolean, Column, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import relationship
 
 from app.database import Base
@@ -173,6 +173,17 @@ class Generation(Base):
     # for reference/debugging.
     video_result_url = Column(Text, default="")
     video_local_path = Column(String, default="")
+
+    # Cost tracking. Vision figures are exact — real token counts from the AI
+    # vision calls this generation actually made (0 if persona/setting were
+    # already cached from an earlier generation), priced at Anthropic's
+    # published rate. KIE figures are a configured estimate (see config.py —
+    # KIE's API has no per-task price field), not a live-verified charge.
+    vision_input_tokens = Column(Integer, default=0, nullable=False)
+    vision_output_tokens = Column(Integer, default=0, nullable=False)
+    vision_cost_usd = Column(Float, nullable=True)
+    kie_credits_cost = Column(Float, nullable=True)
+    kie_usd_cost = Column(Float, nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

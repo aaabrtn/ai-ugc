@@ -19,6 +19,42 @@ MEDIA_TYPES = {
     ".gif": "image/gif",
 }
 
+# Anthropic's published per-model rate, in USD per million tokens, as of this
+# writing — used only to turn real token counts (from the API's own response)
+# into a dollar figure. Unlisted models fall back to no cost estimate rather
+# than a wrong one.
+PRICING_PER_MTOK_USD = {
+    "claude-sonnet-5": (2.00, 10.00),
+    "claude-opus-5": (5.00, 25.00),
+    "claude-haiku-4-5": (1.00, 5.00),
+    "claude-sonnet-4-6": (3.00, 15.00),
+}
+
+
+@dataclass
+class VisionUsage:
+    """Real token counts from one Anthropic API call, plus the dollar cost
+    those tokens imply at today's published rate for the model that was
+    actually called — never estimated or guessed."""
+
+    input_tokens: int
+    output_tokens: int
+    model: str
+
+    @property
+    def cost_usd(self) -> float | None:
+        rates = PRICING_PER_MTOK_USD.get(self.model)
+        if not rates:
+            return None
+        input_rate, output_rate = rates
+        return (self.input_tokens / 1_000_000) * input_rate + (self.output_tokens / 1_000_000) * output_rate
+
+    def __add__(self, other: "VisionUsage") -> "VisionUsage":
+        return VisionUsage(self.input_tokens + other.input_tokens, self.output_tokens + other.output_tokens, self.model)
+
+
+ZERO_USAGE = VisionUsage(0, 0, VISION_MODEL)
+
 
 class VisionNotConfigured(Exception):
     """No AI vision provider is set up — this is a configuration gap, not a
@@ -47,7 +83,7 @@ def _image_blocks(image_paths: list[Path]) -> list[dict]:
     return blocks
 
 
-def _call_vision(image_paths: list[Path], instruction: str, max_tokens: int) -> str:
+def _call_vision(image_paths: list[Path], instruction: str, max_tokens: int) -> tuple[str, VisionUsage]:
     if not image_paths:
         raise VisionError("No reference photos were available to analyze.")
     client = _client()
@@ -63,7 +99,8 @@ def _call_vision(image_paths: list[Path], instruction: str, max_tokens: int) -> 
     text = "".join(block.text for block in message.content if block.type == "text").strip()
     if not text:
         raise VisionError("The AI vision request returned an empty response.")
-    return text
+    usage = VisionUsage(message.usage.input_tokens, message.usage.output_tokens, VISION_MODEL)
+    return text, usage
 
 
 def _parse_json(raw: str) -> dict:
@@ -106,21 +143,24 @@ rather than outerwear meant to be worn out of the house>
 }"""
 
 
-def analyze_garment(image_paths: list[Path], additional_context: str = "") -> GarmentAnalysis:
+def analyze_garment(image_paths: list[Path], additional_context: str = "") -> tuple[GarmentAnalysis, VisionUsage]:
     instruction = GARMENT_INSTRUCTION
     if additional_context.strip():
         instruction += (
             "\n\nAdditional context supplied about this product (texture, thickness, or other detail not "
             f"obvious from the photos alone) — fold this in where relevant:\n{additional_context.strip()}"
         )
-    raw = _call_vision(image_paths, instruction, max_tokens=700)
+    raw, usage = _call_vision(image_paths, instruction, max_tokens=700)
     data = _parse_json(raw)
-    return GarmentAnalysis(
-        description=str(data.get("description", "")).strip(),
-        back_detail=str(data.get("back_detail", "")).strip(),
-        loose_elements=str(data.get("loose_elements", "")).strip(),
-        category_note=str(data.get("category_note", "")).strip(),
-        is_lingerie_or_sleepwear=bool(data.get("is_lingerie_or_sleepwear", False)),
+    return (
+        GarmentAnalysis(
+            description=str(data.get("description", "")).strip(),
+            back_detail=str(data.get("back_detail", "")).strip(),
+            loose_elements=str(data.get("loose_elements", "")).strip(),
+            category_note=str(data.get("category_note", "")).strip(),
+            is_lingerie_or_sleepwear=bool(data.get("is_lingerie_or_sleepwear", False)),
+        ),
+        usage,
     )
 
 
@@ -132,7 +172,7 @@ accessories, tattoos, or other distinguishing marks. Concrete and specific, not 
 2-3 sentences of plain prose only — no preamble, no markdown, no JSON."""
 
 
-def analyze_persona(image_paths: list[Path]) -> str:
+def analyze_persona(image_paths: list[Path]) -> tuple[str, VisionUsage]:
     return _call_vision(image_paths, PERSONA_INSTRUCTION, max_tokens=300)
 
 
@@ -143,5 +183,5 @@ ordinary, unenhanced room lighting -- never studio-quality). Respond with 2-3 se
 only -- no preamble, no markdown, no JSON."""
 
 
-def analyze_setting(image_paths: list[Path]) -> str:
+def analyze_setting(image_paths: list[Path]) -> tuple[str, VisionUsage]:
     return _call_vision(image_paths, SETTING_INSTRUCTION, max_tokens=300)

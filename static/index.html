@@ -280,6 +280,7 @@
               <span id="script-detail-stage-badge" class="badge badge-muted"></span>
             </div>
             <div id="script-detail-checklist" class="checklist"></div>
+            <p id="script-detail-vision-cost" class="vision-cost-line" hidden></p>
             <textarea id="script-detail-prompt-text" rows="16" class="prompt-textarea"></textarea>
             <div class="prompt-actions">
               <button type="button" id="script-generate-btn" class="btn btn-ghost">Regenerate&hellip;</button>
@@ -299,7 +300,7 @@
               <span id="script-video-status-badge" class="badge badge-muted"></span>
             </div>
             <p class="hint" id="script-video-hint">&nbsp;</p>
-            <div id="script-video-result" class="video-result-row" hidden></div>
+            <div id="script-video-result" hidden></div>
             <button type="button" id="script-submit-video-btn" class="btn btn-primary">Generate Video</button>
           </section>
         </div>
@@ -311,6 +312,7 @@
     </div>
 
     <div id="history-tab" class="tab-panel" hidden>
+      <p id="history-summary" class="history-summary" hidden></p>
       <div id="history-list" class="history-list"></div>
       <div id="history-empty-state" class="empty-state" hidden>
         <p class="empty-title">No finished videos yet</p>

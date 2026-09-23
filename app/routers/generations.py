@@ -9,11 +9,18 @@ import httpx
 from fastapi import APIRouter, Depends, Form, HTTPException
 from sqlalchemy.orm import Session
 
-from app.config import KIE_MODEL
+from app.config import KIE_CREDITS_PER_VIDEO, KIE_MODEL, KIE_USD_PER_CREDIT, VISION_MODEL
 from app.database import DATA_DIR, get_db
 from app.generation.sop_check import has_blocking_failure, run_sop_checks
 from app.generation.template import assemble_prompt
-from app.generation.vision import VisionError, VisionNotConfigured, analyze_garment, analyze_persona, analyze_setting
+from app.generation.vision import (
+    VisionError,
+    VisionNotConfigured,
+    VisionUsage,
+    analyze_garment,
+    analyze_persona,
+    analyze_setting,
+)
 from app.integrations.kie import (
     KieError,
     KieNotConfigured,
@@ -64,6 +71,10 @@ def generation_to_out(g: Generation) -> GenerationOut:
     if g.sop_check_results_json:
         sop_checks = [SopCheckOut(**c) for c in json.loads(g.sop_check_results_json)]
 
+    total_cost = None
+    if g.vision_cost_usd is not None or g.kie_usd_cost is not None:
+        total_cost = (g.vision_cost_usd or 0) + (g.kie_usd_cost or 0)
+
     return GenerationOut(
         id=g.id,
         character_id=g.character_id,
@@ -78,6 +89,10 @@ def generation_to_out(g: Generation) -> GenerationOut:
         video_status=g.video_status,
         video_error=g.video_error or "",
         video_url=f"/uploads/generations/{g.video_local_path}" if g.video_local_path else "",
+        vision_cost_usd=g.vision_cost_usd,
+        kie_credits_cost=g.kie_credits_cost,
+        kie_usd_cost=g.kie_usd_cost,
+        total_cost_usd=total_cost,
         created_at=g.created_at,
     )
 
@@ -140,25 +155,41 @@ def generate_prompt(generation_id: str, db: Session = Depends(get_db)):
     character = g.character
     product = g.product
 
+    # Only calls actually made *this* time count toward this generation's cost —
+    # if persona/setting were already cached (from an earlier generation, or from
+    # KIE character registration), they cost nothing extra here.
+    vision_input_tokens = 0
+    vision_output_tokens = 0
+
     try:
         if not character.persona_description:
             identity_paths = [
                 CHARACTER_UPLOADS_DIR / img.file_path for img in character.images if img.kind == ImageKind.identity
             ]
-            character.persona_description = analyze_persona(identity_paths)
+            character.persona_description, usage = analyze_persona(identity_paths)
+            vision_input_tokens += usage.input_tokens
+            vision_output_tokens += usage.output_tokens
 
         if not character.setting_description:
             setting_paths = [
                 CHARACTER_UPLOADS_DIR / img.file_path for img in character.images if img.kind == ImageKind.setting
             ]
-            character.setting_description = analyze_setting(setting_paths)
+            character.setting_description, usage = analyze_setting(setting_paths)
+            vision_input_tokens += usage.input_tokens
+            vision_output_tokens += usage.output_tokens
 
         garment_paths = [PRODUCT_UPLOADS_DIR / img.file_path for img in product.images]
-        garment = analyze_garment(garment_paths, additional_context=product.additional_context or "")
+        garment, usage = analyze_garment(garment_paths, additional_context=product.additional_context or "")
+        vision_input_tokens += usage.input_tokens
+        vision_output_tokens += usage.output_tokens
     except VisionNotConfigured as e:
         raise HTTPException(422, str(e)) from e
     except VisionError as e:
         raise HTTPException(502, f"Couldn't generate a prompt: {e}") from e
+
+    g.vision_input_tokens = vision_input_tokens
+    g.vision_output_tokens = vision_output_tokens
+    g.vision_cost_usd = VisionUsage(vision_input_tokens, vision_output_tokens, VISION_MODEL).cost_usd
 
     g.garment_analysis_json = json.dumps(dataclasses.asdict(garment))
 
@@ -270,6 +301,14 @@ def submit_video(generation_id: str, db: Session = Depends(get_db)):
     g.video_status = VideoStatus.waiting
     g.video_submitted_at = datetime.utcnow()
     g.video_error = ""
+
+    # Estimated, not live — see the KIE_CREDITS_PER_VIDEO comment in config.py.
+    # Accurate as long as every submission uses the same settings (it does: 10s,
+    # 9:16, 720p, one character).
+    if KIE_CREDITS_PER_VIDEO:
+        credits = float(KIE_CREDITS_PER_VIDEO)
+        g.kie_credits_cost = credits
+        g.kie_usd_cost = credits * float(KIE_USD_PER_CREDIT) if KIE_USD_PER_CREDIT else None
 
     db.commit()
     db.refresh(g)

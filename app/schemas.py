@@ -119,6 +119,13 @@ class GenerationOut(BaseModel):
     video_error: str
     video_url: str  # the app's own locally-served copy, once downloaded
 
+    # Cost tracking — see the comment on the Generation model for what's exact
+    # (vision) vs. a configured estimate (kie).
+    vision_cost_usd: Optional[float] = None
+    kie_credits_cost: Optional[float] = None
+    kie_usd_cost: Optional[float] = None
+    total_cost_usd: Optional[float] = None  # sum of whichever of the above are known; None if neither is
+
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

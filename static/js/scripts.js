@@ -271,6 +271,14 @@ function renderPromptSection(script) {
   item.append(icon, body);
   checklist.appendChild(item);
 
+  const visionCostLine = el("script-detail-vision-cost");
+  if (script.vision_cost_usd !== null && script.vision_cost_usd !== undefined) {
+    visionCostLine.hidden = false;
+    visionCostLine.textContent = `AI cost so far: ${formatCost(script.vision_cost_usd)}`;
+  } else {
+    visionCostLine.hidden = true;
+  }
+
   const promptTextarea = el("script-detail-prompt-text");
   const approveBtn = el("script-approve-btn");
 
@@ -341,6 +349,37 @@ function renderVideoSection(script) {
   }
 }
 
+function formatCost(usd) {
+  if (usd === null || usd === undefined) return null;
+  return usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(2)}`;
+}
+
+// Vision cost is exact (real Anthropic token usage). KIE cost is a configured
+// estimate (see KIE_CREDITS_PER_VIDEO in .env) since KIE's API has no
+// per-task price field -- labelled "~" throughout to keep that honest.
+function buildCostLine(script) {
+  const visionKnown = script.vision_cost_usd !== null && script.vision_cost_usd !== undefined;
+  const kieUsdKnown = script.kie_usd_cost !== null && script.kie_usd_cost !== undefined;
+  const kieCreditsKnown = script.kie_credits_cost !== null && script.kie_credits_cost !== undefined;
+  if (!visionKnown && !kieCreditsKnown) return null;
+
+  const detailParts = [];
+  if (visionKnown) detailParts.push(`AI ${formatCost(script.vision_cost_usd)}`);
+  if (kieUsdKnown) {
+    detailParts.push(`video ~${formatCost(script.kie_usd_cost)}`);
+  } else if (kieCreditsKnown) {
+    detailParts.push(`video ~${script.kie_credits_cost} credits`);
+  }
+
+  const p = document.createElement("p");
+  p.className = "video-result-cost";
+  const totalKnown = script.total_cost_usd !== null && script.total_cost_usd !== undefined;
+  p.textContent = totalKnown
+    ? `Total: ~${formatCost(script.total_cost_usd)} (${detailParts.join(" + ")})`
+    : detailParts.join(" + ");
+  return p;
+}
+
 function videoResultArrow() {
   const span = document.createElement("span");
   span.className = "video-result-arrow";
@@ -368,9 +407,13 @@ function videoResultItem(thumbnailUrl, label) {
   return item;
 }
 
-// Builds the compact "character -> product -> result video" row shown once a
-// video finishes, reused by both the script detail page and History cards.
+// Builds the compact "character -> product -> result video" row (plus a cost
+// line, when known) shown once a video finishes, reused by both the script
+// detail page and History cards.
 function buildVideoResultRow(script) {
+  const block = document.createElement("div");
+  block.className = "video-result-block";
+
   const row = document.createElement("div");
   row.className = "video-result-row";
 
@@ -393,7 +436,12 @@ function buildVideoResultRow(script) {
     videoResultArrow(),
     videoItem,
   );
-  return row;
+  block.appendChild(row);
+
+  const costLine = buildCostLine(script);
+  if (costLine) block.appendChild(costLine);
+
+  return block;
 }
 
 function schedulePoll(scriptId) {
@@ -501,6 +549,7 @@ el("script-delete-btn").addEventListener("click", async () => {
 
 const historyListEl = el("history-list");
 const historyEmptyState = el("history-empty-state");
+const historySummaryEl = el("history-summary");
 
 async function loadHistory() {
   const res = await fetch(GENERATIONS_API_BASE);
@@ -511,6 +560,23 @@ async function loadHistory() {
   for (const script of finished) {
     historyListEl.appendChild(renderHistoryCard(script));
   }
+  renderHistorySummary(finished);
+}
+
+function renderHistorySummary(finished) {
+  if (!finished.length) {
+    historySummaryEl.hidden = true;
+    return;
+  }
+  const known = finished.filter((s) => s.total_cost_usd !== null && s.total_cost_usd !== undefined);
+  if (!known.length) {
+    historySummaryEl.hidden = true;
+    return;
+  }
+  const total = known.reduce((sum, s) => sum + s.total_cost_usd, 0);
+  const coverage = known.length === finished.length ? "" : ` <span class="hint-inline">(cost known for ${known.length} of ${finished.length})</span>`;
+  historySummaryEl.hidden = false;
+  historySummaryEl.innerHTML = `Total spent: ~${formatCost(total)} across ${finished.length} video${finished.length === 1 ? "" : "s"}${coverage}`;
 }
 
 function renderHistoryCard(script) {
