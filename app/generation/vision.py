@@ -106,8 +106,14 @@ rather than outerwear meant to be worn out of the house>
 }"""
 
 
-def analyze_garment(image_paths: list[Path]) -> GarmentAnalysis:
-    raw = _call_vision(image_paths, GARMENT_INSTRUCTION, max_tokens=700)
+def analyze_garment(image_paths: list[Path], additional_context: str = "") -> GarmentAnalysis:
+    instruction = GARMENT_INSTRUCTION
+    if additional_context.strip():
+        instruction += (
+            "\n\nAdditional context supplied about this product (texture, thickness, or other detail not "
+            f"obvious from the photos alone) — fold this in where relevant:\n{additional_context.strip()}"
+        )
+    raw = _call_vision(image_paths, instruction, max_tokens=700)
     data = _parse_json(raw)
     return GarmentAnalysis(
         description=str(data.get("description", "")).strip(),

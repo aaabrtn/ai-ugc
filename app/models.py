@@ -83,13 +83,6 @@ class FetchStatus(str, enum.Enum):
     failed = "failed"
 
 
-class JobStage(str, enum.Enum):
-    fetched = "fetched"  # product photos in, no prompt generated yet
-    blocked = "blocked"  # prompt generation was refused (e.g. content-boundary check failed)
-    prompt_generated = "prompt_generated"  # prompt generated, awaiting review/edits
-    approved = "approved"  # Andrew approved the (possibly edited) prompt
-
-
 class VideoStatus(str, enum.Enum):
     not_started = "not_started"
     waiting = "waiting"  # KIE's own states, used as-is once submitted
@@ -99,24 +92,71 @@ class VideoStatus(str, enum.Enum):
     fail = "fail"
 
 
-class Job(Base):
-    """A single product → video attempt. Phase 4 adds Drive upload of the
-    finished video on top of this row."""
+class Product(Base):
+    """A catalogue entry: a product's photos and info, independent of any
+    character. Fetched once (or added manually), reused across as many
+    Generations (different characters, or retries) as you like."""
 
-    __tablename__ = "jobs"
+    __tablename__ = "products"
 
     id = Column(String, primary_key=True, default=gen_id)
-    character_id = Column(String, ForeignKey("characters.id"), nullable=False)
+
+    # Editable — defaults to the scraped page title but can be renamed to
+    # something short and memorable.
+    name = Column(String, nullable=False)
 
     source_url = Column(String, default="")
     fetch_method_used = Column(String, default="")  # structured_data / html_scrape / headless_browser / manual_upload
     fetch_status = Column(Enum(FetchStatus), nullable=False)
     fetch_error = Column(Text, default="")  # human-readable; set when fetch_status == failed, or as a note on fallback
 
-    product_title = Column(String, default="")
-    product_description = Column(Text, default="")
+    description = Column(Text, default="")  # scraped from the product page, read-only in the UI
+    # Free-text, user-supplied: texture, thickness, anything not visible in the
+    # photos themselves. Folded into the garment vision analysis as extra context.
+    additional_context = Column(Text, default="")
 
-    stage = Column(Enum(JobStage), nullable=False, default=JobStage.fetched)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    images = relationship(
+        "ProductImage",
+        back_populates="product",
+        cascade="all, delete-orphan",
+        order_by="ProductImage.created_at",
+    )
+
+
+class ProductImage(Base):
+    __tablename__ = "product_images"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    product_id = Column(String, ForeignKey("products.id"), nullable=False)
+    file_path = Column(String, nullable=False)  # path relative to data/uploads/
+    source_url = Column(String, default="")  # original remote URL, if scraped
+    original_filename = Column(String, default="")  # if manually uploaded
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    product = relationship("Product", back_populates="images")
+
+
+class GenerationStage(str, enum.Enum):
+    draft = "draft"  # character + product picked, no prompt yet
+    blocked = "blocked"  # prompt generation was refused (e.g. content-boundary check failed)
+    prompt_generated = "prompt_generated"  # prompt generated, awaiting review/edits
+    approved = "approved"  # Andrew approved the (possibly edited) prompt
+
+
+class Generation(Base):
+    """One script: a specific character paired with a specific product. Holds
+    the generated prompt, its SOP checks, and (Phase 3) the video attempt."""
+
+    __tablename__ = "generations"
+
+    id = Column(String, primary_key=True, default=gen_id)
+    character_id = Column(String, ForeignKey("characters.id"), nullable=False)
+    product_id = Column(String, ForeignKey("products.id"), nullable=False)
+
+    stage = Column(Enum(GenerationStage), nullable=False, default=GenerationStage.draft)
     garment_analysis_json = Column(Text, default="")  # JSON-encoded GarmentAnalysis, for display/debugging
     generated_prompt = Column(Text, default="")
     sop_check_results_json = Column(Text, default="")  # JSON-encoded list of check results
@@ -137,22 +177,4 @@ class Job(Base):
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     character = relationship("Character")
-    images = relationship(
-        "JobImage",
-        back_populates="job",
-        cascade="all, delete-orphan",
-        order_by="JobImage.created_at",
-    )
-
-
-class JobImage(Base):
-    __tablename__ = "job_images"
-
-    id = Column(String, primary_key=True, default=gen_id)
-    job_id = Column(String, ForeignKey("jobs.id"), nullable=False)
-    file_path = Column(String, nullable=False)  # path relative to data/uploads/
-    source_url = Column(String, default="")  # original remote URL, if scraped
-    original_filename = Column(String, default="")  # if manually uploaded
-    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-
-    job = relationship("Job", back_populates="images")
+    product = relationship("Product")

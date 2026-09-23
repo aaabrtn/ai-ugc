@@ -3,7 +3,7 @@ from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import FetchStatus, ImageKind, JobStage, VideoStatus
+from app.models import FetchStatus, GenerationStage, ImageKind, VideoStatus
 
 
 class ImageOut(BaseModel):
@@ -46,11 +46,42 @@ class CharacterSummaryOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-class JobImageOut(BaseModel):
+class ProductImageOut(BaseModel):
     id: str
     url: str
     source_url: str
     original_filename: str
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProductOut(BaseModel):
+    id: str
+    name: str
+
+    source_url: str
+    fetch_method_used: str
+    fetch_status: FetchStatus
+    fetch_error: str
+
+    description: str
+    additional_context: str
+
+    created_at: datetime
+    updated_at: datetime
+
+    images: List[ProductImageOut]
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProductSummaryOut(BaseModel):
+    """Lightweight product shape for dropdowns/selectors elsewhere in the app."""
+
+    id: str
+    name: str
+    fetch_status: FetchStatus
+    thumbnail_url: str = ""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -70,20 +101,14 @@ class SopCheckOut(BaseModel):
     detail: str
 
 
-class JobOut(BaseModel):
+class GenerationOut(BaseModel):
     id: str
     character_id: str
     character: CharacterSummaryOut
+    product_id: str
+    product: ProductSummaryOut
 
-    source_url: str
-    fetch_method_used: str
-    fetch_status: FetchStatus
-    fetch_error: str
-
-    product_title: str
-    product_description: str
-
-    stage: JobStage
+    stage: GenerationStage
     garment_analysis: Optional[GarmentAnalysisOut]
     generated_prompt: str
     sop_check_results: List[SopCheckOut]
@@ -94,7 +119,5 @@ class JobOut(BaseModel):
     video_url: str  # the app's own locally-served copy, once downloaded
 
     created_at: datetime
-
-    images: List[JobImageOut]
 
     model_config = ConfigDict(from_attributes=True)

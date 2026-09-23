@@ -11,25 +11,26 @@
 </head>
 <body>
   <header class="topbar">
-    <div class="brand">
+    <button type="button" class="brand" id="home-btn" data-tab="scripts">
       <span class="brand-mark">AI</span>
       <div>
         <h1>AI UGC Generator</h1>
         <p class="brand-sub">KLIQMGMT</p>
       </div>
-    </div>
+    </button>
     <nav class="tabs">
-      <button type="button" class="tab-btn active" data-tab="characters">Characters</button>
+      <button type="button" class="tab-btn" data-tab="characters">Characters</button>
       <button type="button" class="tab-btn" data-tab="products">Products</button>
     </nav>
     <div class="topbar-actions">
-      <button id="new-character-btn" class="btn btn-primary tab-action" data-tab="characters">+ New Character</button>
-      <button id="new-job-btn" class="btn btn-primary tab-action" data-tab="products" hidden>+ New Product</button>
+      <button id="new-character-btn" class="btn btn-primary tab-action" data-tab="characters" hidden>+ New Character</button>
+      <button id="new-product-btn" class="btn btn-primary tab-action" data-tab="products" hidden>+ New Product</button>
+      <button id="new-script-btn" class="btn btn-primary tab-action" data-tab="scripts">+ New Script</button>
     </div>
   </header>
 
   <main>
-    <div id="characters-tab" class="tab-panel">
+    <div id="characters-tab" class="tab-panel" hidden>
       <section id="character-list-view">
         <div id="character-list" class="character-grid"></div>
         <div id="empty-state" class="empty-state" hidden>
@@ -115,126 +116,201 @@
     </div>
 
     <div id="products-tab" class="tab-panel" hidden>
-      <section id="job-list-view">
-        <div id="job-list" class="job-list"></div>
-        <div id="job-empty-state" class="empty-state" hidden>
+      <section id="product-list-view">
+        <div id="product-list" class="job-list"></div>
+        <div id="product-empty-state" class="empty-state" hidden>
           <p class="empty-title">No products yet</p>
-          <p class="empty-sub">Give a product URL to a character and fetch its photos to get started.</p>
-          <button type="button" class="btn btn-primary" id="job-empty-new-btn">+ New Product</button>
+          <p class="empty-sub">Add a product URL or upload photos to get started.</p>
+          <button type="button" class="btn btn-primary" id="product-empty-new-btn">+ New Product</button>
         </div>
       </section>
 
-      <section id="job-form-view" hidden>
-        <form id="job-form" class="character-form" novalidate>
+      <section id="product-form-view" hidden>
+        <form id="product-form" class="character-form" novalidate>
           <div class="form-header">
             <div>
               <p class="eyebrow">New Product</p>
-              <h2 class="section-title">Fetch a product</h2>
+              <h2 class="section-title">Add a product</h2>
             </div>
           </div>
 
           <div class="form-grid form-grid-single">
             <section class="field-card">
-              <h3>Character</h3>
-              <p class="hint">Which character will be wearing this product.</p>
-              <select id="jf-character" required></select>
-            </section>
-
-            <section class="field-card">
               <h3>Product URL</h3>
               <p class="hint">Their website, a TikTok Shop link, or a Kalodata product link. We'll always try this first, through several methods, before falling back to manual photos.</p>
-              <input type="url" id="jf-source-url" placeholder="https://..." />
+              <input type="url" id="pf-source-url" placeholder="https://..." />
             </section>
 
             <section class="field-card">
               <h3>Product photos <span class="hint-inline">(fail-safe, optional)</span></h3>
               <p class="hint">Only used if the URL can't be read automatically — or skip the URL entirely and just attach photos.</p>
-              <div class="dropzone" id="job-images-dropzone">
-                <div id="job-images-pending" class="image-grid"></div>
-                <label class="dropzone-tile" for="jf-manual-images">
+              <div class="dropzone" id="product-form-dropzone">
+                <div id="product-form-pending" class="image-grid"></div>
+                <label class="dropzone-tile" for="pf-manual-images">
                   <span class="dropzone-icon">+</span>
                   <span>Add</span>
                 </label>
-                <input type="file" id="jf-manual-images" accept="image/*" multiple hidden />
+                <input type="file" id="pf-manual-images" accept="image/*" multiple hidden />
               </div>
             </section>
           </div>
 
           <div class="form-actions">
-            <button type="button" id="job-cancel-btn" class="btn btn-ghost">Cancel</button>
-            <button type="submit" id="job-submit-btn" class="btn btn-primary">Fetch Product</button>
+            <button type="button" id="product-form-cancel-btn" class="btn btn-ghost">Cancel</button>
+            <button type="submit" id="product-submit-btn" class="btn btn-primary">Fetch Product</button>
           </div>
-          <p id="job-form-error" class="error" hidden></p>
+          <p id="product-form-error" class="error" hidden></p>
         </form>
       </section>
 
-      <section id="job-detail-view" hidden>
+      <section id="product-detail-view" hidden>
+        <form id="product-detail-form" class="character-form" novalidate>
+          <input type="hidden" id="product-id" />
+          <div class="form-header">
+            <div>
+              <p class="eyebrow">Product</p>
+              <input type="text" id="pd-name" class="name-input" placeholder="Product name" required />
+              <p class="hint" id="pd-date">&nbsp;</p>
+            </div>
+            <div class="detail-header-actions">
+              <button type="button" id="product-delete-btn" class="btn btn-danger-ghost">Delete</button>
+            </div>
+          </div>
+
+          <p id="product-detail-banner" class="banner" hidden></p>
+
+          <div class="form-grid form-grid-single">
+            <section class="field-card">
+              <div class="field-card-head">
+                <h3>Photos</h3>
+                <span id="pd-method" class="badge badge-muted"></span>
+              </div>
+              <div class="dropzone" id="pd-images-dropzone">
+                <div id="pd-images-existing" class="image-grid"></div>
+                <label class="dropzone-tile" for="pd-add-images">
+                  <span class="dropzone-icon">+</span>
+                  <span>Add</span>
+                </label>
+                <input type="file" id="pd-add-images" accept="image/*" multiple hidden />
+              </div>
+            </section>
+
+            <section class="field-card" id="pd-description-section">
+              <h3>Scraped description</h3>
+              <p class="hint" id="pd-description">&nbsp;</p>
+            </section>
+
+            <section class="field-card">
+              <h3>Additional context <span class="hint-inline">(optional)</span></h3>
+              <p class="hint">Texture, thickness, or anything else not obvious from the photos — folds into the AI garment description when generating a script.</p>
+              <textarea id="pd-additional-context" rows="4" placeholder="e.g. the fabric is a heavier ribbed knit, the ties are wider than they look in photos..."></textarea>
+            </section>
+
+            <section class="field-card" id="pd-source-section">
+              <h3>Source</h3>
+              <p class="hint" id="pd-source-url">&nbsp;</p>
+            </section>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="product-detail-back-btn" class="btn btn-ghost">Back</button>
+            <button type="submit" class="btn btn-primary">Save</button>
+          </div>
+          <p id="product-detail-error" class="error" hidden></p>
+        </form>
+      </section>
+    </div>
+
+    <div id="scripts-tab" class="tab-panel">
+      <section id="script-list-view">
+        <div id="script-list" class="job-list"></div>
+        <div id="script-empty-state" class="empty-state" hidden>
+          <p class="empty-title">No scripts yet</p>
+          <p class="empty-sub">Pick a character and a product to generate your first script.</p>
+          <button type="button" class="btn btn-primary" id="script-empty-new-btn">+ New Script</button>
+        </div>
+      </section>
+
+      <section id="script-form-view" hidden>
+        <form id="script-form" class="character-form" novalidate>
+          <div class="form-header">
+            <div>
+              <p class="eyebrow">New Script</p>
+              <h2 class="section-title">Pick a character and a product</h2>
+            </div>
+          </div>
+
+          <div class="form-grid">
+            <section class="field-card">
+              <h3>Character</h3>
+              <select id="sf-character" required></select>
+            </section>
+            <section class="field-card">
+              <h3>Product</h3>
+              <select id="sf-product" required></select>
+            </section>
+          </div>
+
+          <div class="form-actions">
+            <button type="button" id="script-cancel-btn" class="btn btn-ghost">Cancel</button>
+            <button type="submit" id="script-submit-btn" class="btn btn-primary">Create Script</button>
+          </div>
+          <p id="script-form-error" class="error" hidden></p>
+        </form>
+      </section>
+
+      <section id="script-detail-view" hidden>
         <div class="form-header">
           <div>
-            <p class="eyebrow" id="job-detail-eyebrow">Product</p>
-            <h2 class="section-title" id="job-detail-title">&nbsp;</h2>
-            <p class="hint" id="job-detail-date">&nbsp;</p>
+            <p class="eyebrow" id="script-detail-eyebrow">Script</p>
+            <h2 class="section-title" id="script-detail-title">&nbsp;</h2>
+            <p class="hint" id="script-detail-date">&nbsp;</p>
           </div>
           <div class="detail-header-actions">
-            <button type="button" id="job-rerun-btn" class="btn btn-ghost" hidden>Re-run&hellip;</button>
-            <button type="button" id="job-delete-btn" class="btn btn-danger-ghost">Delete</button>
+            <button type="button" id="script-delete-btn" class="btn btn-danger-ghost">Delete</button>
           </div>
         </div>
 
-        <p id="job-detail-banner" class="banner" hidden></p>
-
         <div class="form-grid form-grid-single">
-          <section class="field-card">
-            <div class="field-card-head">
-              <h3>Fetched photos</h3>
-              <span id="job-detail-method" class="badge badge-muted"></span>
-            </div>
-            <div id="job-detail-images" class="image-grid-static"></div>
-          </section>
-
-          <section class="field-card" id="job-detail-product-info">
-            <h3>Product info</h3>
-            <p class="hint" id="job-detail-description">&nbsp;</p>
-          </section>
-
-          <section class="field-card" id="job-detail-prompt-section" hidden>
+          <section class="field-card" id="script-detail-prompt-section" hidden>
             <div class="field-card-head">
               <h3>Video prompt</h3>
-              <span id="job-detail-stage-badge" class="badge badge-muted"></span>
+              <span id="script-detail-stage-badge" class="badge badge-muted"></span>
             </div>
-            <div id="job-detail-checklist" class="checklist"></div>
-            <textarea id="job-detail-prompt-text" rows="16" class="prompt-textarea"></textarea>
+            <div id="script-detail-checklist" class="checklist"></div>
+            <textarea id="script-detail-prompt-text" rows="16" class="prompt-textarea"></textarea>
             <div class="prompt-actions">
-              <button type="button" id="job-generate-btn" class="btn btn-ghost">Regenerate&hellip;</button>
-              <button type="button" id="job-approve-btn" class="btn btn-primary">Approve Prompt</button>
+              <button type="button" id="script-generate-btn" class="btn btn-ghost">Regenerate&hellip;</button>
+              <button type="button" id="script-approve-btn" class="btn btn-primary">Approve Prompt</button>
             </div>
           </section>
 
-          <section class="field-card" id="job-detail-generate-section">
+          <section class="field-card" id="script-detail-generate-section">
             <h3>Video prompt</h3>
             <p class="hint">Uses AI vision to read the character, setting, and garment photos and assemble a full SOP-validated video prompt.</p>
-            <button type="button" id="job-generate-first-btn" class="btn btn-primary">Generate Prompt</button>
+            <button type="button" id="script-generate-first-btn" class="btn btn-primary">Generate Prompt</button>
           </section>
 
-          <section class="field-card" id="job-detail-video-section" hidden>
+          <section class="field-card" id="script-detail-video-section" hidden>
             <div class="field-card-head">
               <h3>Video</h3>
-              <span id="job-video-status-badge" class="badge badge-muted"></span>
+              <span id="script-video-status-badge" class="badge badge-muted"></span>
             </div>
-            <p class="hint" id="job-video-hint">&nbsp;</p>
-            <video id="job-video-player" controls hidden></video>
-            <button type="button" id="job-submit-video-btn" class="btn btn-primary">Generate Video</button>
+            <p class="hint" id="script-video-hint">&nbsp;</p>
+            <video id="script-video-player" controls hidden></video>
+            <button type="button" id="script-submit-video-btn" class="btn btn-primary">Generate Video</button>
           </section>
         </div>
 
         <div class="form-actions">
-          <button type="button" id="job-detail-back-btn" class="btn btn-ghost">Back</button>
+          <button type="button" id="script-detail-back-btn" class="btn btn-ghost">Back</button>
         </div>
       </section>
     </div>
   </main>
 
   <script src="/static/js/app.js"></script>
-  <script src="/static/js/jobs.js"></script>
+  <script src="/static/js/products.js"></script>
+  <script src="/static/js/scripts.js"></script>
 </body>
 </html>
