@@ -92,7 +92,9 @@
 
             <section class="field-card">
               <h3>KIE Character ID <span class="hint-inline">(for video generation)</span></h3>
-              <p class="hint">Created once in KIE's own dashboard, then pasted here — required before this character can generate a video.</p>
+              <p class="hint">Register this character with KIE automatically using its reference photos, or paste in an ID from a character already created in KIE's own dashboard.</p>
+              <button type="button" id="register-kie-btn" class="btn btn-ghost" hidden>Register with KIE</button>
+              <p class="hint" id="register-kie-hint" hidden>Save this character first, then register it with KIE.</p>
               <label>Character ID
                 <input type="text" id="f-kie-character-id" placeholder="e.g. b09dbf56..." />
               </label>

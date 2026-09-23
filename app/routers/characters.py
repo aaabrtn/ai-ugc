@@ -7,6 +7,9 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import DATA_DIR, get_db
+from app.generation.vision import VisionError, VisionNotConfigured, analyze_persona
+from app.integrations.drive import DriveError, DriveNotConfigured, upload_public_image
+from app.integrations.kie import KieError, KieNotConfigured, create_character as kie_create_character
 from app.models import Character, CharacterImage, ImageKind
 from app.schemas import CharacterOut, ImageOut
 
@@ -215,3 +218,54 @@ def delete_character(character_id: str, db: Session = Depends(get_db)):
     if char_dir.exists():
         shutil.rmtree(char_dir, ignore_errors=True)
     return {"ok": True}
+
+
+@router.post("/{character_id}/register-kie", response_model=CharacterOut)
+def register_kie_character(character_id: str, db: Session = Depends(get_db)):
+    """Registers this character with KIE (gemini-omni-character) and saves the
+    returned character ID — the app-driven alternative to pasting in an ID for a
+    character already created in KIE's own dashboard."""
+    character = db.get(Character, character_id)
+    if not character:
+        raise HTTPException(404, "Character not found")
+    if not character.identity_images:
+        raise HTTPException(400, "This character needs at least one reference photo first")
+
+    # KIE takes at most 2 images: index 0 portrait, index 1 an optional body shot.
+    # The character's own upload order decides which photos those are.
+    reference_images = character.identity_images[:2]
+    has_body = len(reference_images) > 1
+
+    try:
+        if not character.persona_description:
+            identity_paths = [UPLOADS_DIR / img.file_path for img in character.identity_images]
+            character.persona_description = analyze_persona(identity_paths)
+    except VisionNotConfigured as e:
+        raise HTTPException(422, str(e)) from e
+    except VisionError as e:
+        raise HTTPException(502, f"Couldn't describe this character: {e}") from e
+
+    descriptions = character.persona_description
+    if character.characteristics:
+        descriptions = f"{descriptions} {character.characteristics}".strip()
+
+    try:
+        image_urls = [upload_public_image(UPLOADS_DIR / img.file_path) for img in reference_images]
+    except DriveNotConfigured as e:
+        raise HTTPException(422, str(e)) from e
+    except DriveError as e:
+        raise HTTPException(502, f"Couldn't prepare reference photos for KIE: {e}") from e
+
+    try:
+        result = kie_create_character(descriptions=descriptions, image_urls=image_urls, character_name=character.name)
+    except KieNotConfigured as e:
+        raise HTTPException(422, str(e)) from e
+    except KieError as e:
+        raise HTTPException(502, f"KIE rejected the character registration: {e}") from e
+
+    character.kie_character_id = result["characterId"]
+    character.kie_character_has_body = has_body
+
+    db.commit()
+    db.refresh(character)
+    return character_to_out(character)

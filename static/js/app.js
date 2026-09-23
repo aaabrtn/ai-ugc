@@ -194,6 +194,9 @@ function resetForm() {
   settingLockBadge.hidden = true;
   unlockSettingBtn.hidden = true;
   setSettingLocked(false);
+
+  el("register-kie-btn").hidden = true;
+  el("register-kie-hint").hidden = false;
 }
 
 function setSettingLocked(locked) {
@@ -224,6 +227,9 @@ async function openEditForm(id) {
   el("f-characteristics").value = c.characteristics;
   el("f-kie-character-id").value = c.kie_character_id;
   el("f-kie-has-body").checked = c.kie_character_has_body;
+  el("register-kie-btn").hidden = false;
+  el("register-kie-hint").hidden = true;
+  el("register-kie-btn").textContent = c.kie_character_id ? "Re-register with KIE" : "Register with KIE";
 
   renderExistingImages("identity-images-existing", c.identity_images, identityDropzone);
   renderExistingImages("setting-images-existing", c.setting_images, settingDropzone);
@@ -263,6 +269,29 @@ deleteBtn.addEventListener("click", async () => {
     showList();
   } else {
     alert("Failed to delete character.");
+  }
+});
+
+el("register-kie-btn").addEventListener("click", async () => {
+  if (!currentCharacter) return;
+  const btn = el("register-kie-btn");
+  const originalText = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Registering…";
+  try {
+    const res = await fetch(`${API_BASE}/${currentCharacter.id}/register-kie`, { method: "POST" });
+    if (!res.ok) {
+      alert(await extractError(res));
+      return;
+    }
+    const c = await res.json();
+    currentCharacter = c;
+    el("f-kie-character-id").value = c.kie_character_id;
+    el("f-kie-has-body").checked = c.kie_character_has_body;
+    btn.textContent = "Re-register with KIE";
+  } finally {
+    btn.disabled = false;
+    if (btn.textContent === "Registering…") btn.textContent = originalText;
   }
 });
 

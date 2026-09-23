@@ -85,6 +85,31 @@ def submit_video_task(
     return task_id
 
 
+def create_character(*, descriptions: str, image_urls: list[str], character_name: str = "") -> dict:
+    """Registers a new character with KIE (`gemini-omni-character`). Returns the raw
+    `data` object: at least `characterId`, plus `characterName`/`imageUrl`/`bodyImageUrl`.
+    `image_urls` must already be publicly fetchable — index 0 is the portrait, an
+    optional index 1 is a body reference photo (max 2 images total)."""
+    body = {"descriptions": descriptions, "image_urls": image_urls[:2]}
+    if character_name:
+        body["character_name"] = character_name
+
+    try:
+        resp = httpx.post(f"{KIE_BASE_URL}/api/v1/omni/character/create", headers=_headers(), json=body, timeout=60)
+    except httpx.RequestError as e:
+        raise KieError(f"Couldn't reach KIE: {e}") from e
+
+    try:
+        payload = resp.json()
+    except ValueError as e:
+        raise KieError(f"KIE returned an unreadable response (HTTP {resp.status_code}).") from e
+
+    data = payload.get("data")
+    if not data or not data.get("characterId"):
+        raise KieError(payload.get("msg") or f"KIE didn't return a character ID (HTTP {resp.status_code}).")
+    return data
+
+
 def get_task_detail(task_id: str) -> dict:
     """Returns the raw `data` object from KIE's recordInfo response: at least
     `state` (waiting/queuing/generating/success/fail), and on success
