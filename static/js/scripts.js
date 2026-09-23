@@ -307,7 +307,7 @@ function renderVideoSection(script) {
 
   const badge = el("script-video-status-badge");
   const hint = el("script-video-hint");
-  const player = el("script-video-player");
+  const videoResult = el("script-video-result");
   const submitBtn = el("script-submit-video-btn");
 
   badge.textContent = VIDEO_STATUS_LABELS[script.video_status] || script.video_status;
@@ -315,30 +315,85 @@ function renderVideoSection(script) {
     "badge " +
     (script.video_status === "success" ? "badge-ok" : script.video_status === "fail" ? "badge-fail" : "badge-muted");
 
+  videoResult.innerHTML = "";
+  videoResult.hidden = true;
+
   if (script.video_status === "not_started") {
     hint.textContent = "Submits the approved prompt, the character, and its setting/garment reference photos to KIE.";
     submitBtn.hidden = false;
     submitBtn.disabled = false;
     submitBtn.textContent = "Generate Video";
-    player.hidden = true;
   } else if (script.video_status === "success") {
-    hint.textContent = "Done.";
+    hint.textContent = "Done — also saved to History.";
     submitBtn.hidden = true;
-    player.hidden = false;
-    player.src = script.video_url;
+    videoResult.hidden = false;
+    videoResult.appendChild(buildVideoResultRow(script));
   } else if (script.video_status === "fail") {
     hint.textContent = script.video_error || "Generation failed.";
     submitBtn.hidden = false;
     submitBtn.disabled = false;
     submitBtn.textContent = "Try Again";
-    player.hidden = true;
   } else {
     // waiting / queuing / generating
     hint.textContent = "This can take a few minutes — status updates automatically.";
     submitBtn.hidden = true;
-    player.hidden = true;
     schedulePoll(script.id);
   }
+}
+
+function videoResultArrow() {
+  const span = document.createElement("span");
+  span.className = "video-result-arrow";
+  span.textContent = "→";
+  return span;
+}
+
+function videoResultItem(thumbnailUrl, label) {
+  const item = document.createElement("div");
+  item.className = "video-result-item";
+
+  const thumb = document.createElement("div");
+  thumb.className = "video-result-thumb";
+  if (thumbnailUrl) {
+    const img = document.createElement("img");
+    img.src = thumbnailUrl;
+    thumb.appendChild(img);
+  }
+
+  const caption = document.createElement("p");
+  caption.className = "video-result-label";
+  caption.textContent = label;
+
+  item.append(thumb, caption);
+  return item;
+}
+
+// Builds the compact "character -> product -> result video" row shown once a
+// video finishes, reused by both the script detail page and History cards.
+function buildVideoResultRow(script) {
+  const row = document.createElement("div");
+  row.className = "video-result-row";
+
+  const videoItem = document.createElement("div");
+  videoItem.className = "video-result-item video-result-player";
+  const video = document.createElement("video");
+  video.controls = true;
+  video.src = script.video_url;
+  const downloadLink = document.createElement("a");
+  downloadLink.className = "btn btn-ghost btn-sm";
+  downloadLink.href = script.video_url;
+  downloadLink.download = `${script.character.name}-${script.product.name}`.replace(/[^\w.-]+/g, "-") + ".mp4";
+  downloadLink.textContent = "Download";
+  videoItem.append(video, downloadLink);
+
+  row.append(
+    videoResultItem(script.character.thumbnail_url, script.character.name),
+    videoResultArrow(),
+    videoResultItem(script.product.thumbnail_url, script.product.name),
+    videoResultArrow(),
+    videoItem,
+  );
+  return row;
 }
 
 function schedulePoll(scriptId) {
@@ -441,6 +496,51 @@ el("script-delete-btn").addEventListener("click", async () => {
     alert("Failed to delete script.");
   }
 });
+
+// ---------- History ----------
+
+const historyListEl = el("history-list");
+const historyEmptyState = el("history-empty-state");
+
+async function loadHistory() {
+  const res = await fetch(GENERATIONS_API_BASE);
+  const scripts = await res.json();
+  const finished = scripts.filter((s) => s.video_status === "success");
+  historyListEl.innerHTML = "";
+  historyEmptyState.hidden = finished.length > 0;
+  for (const script of finished) {
+    historyListEl.appendChild(renderHistoryCard(script));
+  }
+}
+
+function renderHistoryCard(script) {
+  const card = document.createElement("div");
+  card.className = "history-card";
+  card.appendChild(buildVideoResultRow(script));
+
+  const meta = document.createElement("div");
+  meta.className = "history-card-meta";
+
+  const title = document.createElement("h3");
+  title.textContent = `${script.character.name} × ${script.product.name}`;
+
+  const date = document.createElement("p");
+  date.className = "job-card-url";
+  date.textContent = formatDate(script.created_at);
+
+  const viewBtn = document.createElement("button");
+  viewBtn.type = "button";
+  viewBtn.className = "btn btn-ghost btn-sm";
+  viewBtn.textContent = "Open script";
+  viewBtn.addEventListener("click", () => {
+    switchTab("scripts");
+    showScriptDetail(script);
+  });
+
+  meta.append(title, date, viewBtn);
+  card.appendChild(meta);
+  return card;
+}
 
 // Scripts is the app's home view, so load it immediately rather than waiting
 // for a tab click.

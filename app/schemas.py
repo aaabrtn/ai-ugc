@@ -42,6 +42,7 @@ class CharacterSummaryOut(BaseModel):
     id: str
     name: str
     kie_character_id: str
+    thumbnail_url: str = ""
 
     model_config = ConfigDict(from_attributes=True)
 

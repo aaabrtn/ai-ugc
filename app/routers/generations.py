@@ -45,6 +45,16 @@ def product_summary(product: Product) -> ProductSummaryOut:
     )
 
 
+def character_summary(character: Character) -> CharacterSummaryOut:
+    thumbnail_url = f"/uploads/{character.identity_images[0].file_path}" if character.identity_images else ""
+    return CharacterSummaryOut(
+        id=character.id,
+        name=character.name,
+        kie_character_id=character.kie_character_id or "",
+        thumbnail_url=thumbnail_url,
+    )
+
+
 def generation_to_out(g: Generation) -> GenerationOut:
     garment_analysis = None
     if g.garment_analysis_json:
@@ -57,7 +67,7 @@ def generation_to_out(g: Generation) -> GenerationOut:
     return GenerationOut(
         id=g.id,
         character_id=g.character_id,
-        character=CharacterSummaryOut.model_validate(g.character),
+        character=character_summary(g.character),
         product_id=g.product_id,
         product=product_summary(g.product),
         stage=g.stage,

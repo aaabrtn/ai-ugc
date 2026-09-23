@@ -46,12 +46,15 @@ function switchTab(tab) {
   el("characters-tab").hidden = tab !== "characters";
   el("products-tab").hidden = tab !== "products";
   el("scripts-tab").hidden = tab !== "scripts";
+  el("history-tab").hidden = tab !== "history";
   if (tab === "characters") {
     loadCharacters();
   } else if (tab === "products") {
     showProductList();
   } else if (tab === "scripts") {
     showScriptList();
+  } else if (tab === "history") {
+    loadHistory();
   }
   if (tab !== "scripts") stopPolling();
 }
