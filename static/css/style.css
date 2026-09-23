@@ -564,6 +564,68 @@ input[type="url"]:focus { outline: none; border-color: var(--accent); background
   height: 120px;
 }
 
+/* ---------- Prompt review ---------- */
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  font-size: 0.85rem;
+}
+
+.checklist-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  margin-top: 0.05rem;
+}
+.checklist-item.pass .checklist-icon { background: #e4f3e8; color: var(--ok); }
+.checklist-item.fail .checklist-icon { background: var(--danger-soft); color: var(--danger); }
+.checklist-item.manual .checklist-icon { background: var(--warning-soft); color: var(--warning); }
+
+.checklist-body { min-width: 0; }
+.checklist-label { font-weight: 600; margin: 0; }
+.checklist-detail { margin: 0.1rem 0 0; color: var(--text-muted); }
+
+.prompt-textarea {
+  display: block;
+  width: 100%;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 0.86rem;
+  line-height: 1.55;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  background: var(--surface-alt);
+  color: var(--text);
+  resize: vertical;
+  margin-bottom: 0.9rem;
+}
+.prompt-textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+
+.prompt-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
 @media (max-width: 720px) {
   .topbar { padding: 1rem 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
   main { padding: 1.5rem 1.1rem 4rem; }

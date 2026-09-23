@@ -310,7 +310,119 @@ function renderJobDetail(job) {
   } else {
     infoSection.hidden = true;
   }
+
+  renderPromptSection(job);
 }
+
+const STAGE_LABELS = {
+  blocked: "Blocked",
+  prompt_generated: "Draft — needs review",
+  approved: "Approved",
+};
+
+const CHECK_ICONS = { pass: "✓", fail: "✕", manual: "!" };
+
+function renderPromptSection(job) {
+  const generateSection = el("job-detail-generate-section");
+  const promptSection = el("job-detail-prompt-section");
+
+  if (job.stage === "fetched") {
+    generateSection.hidden = false;
+    promptSection.hidden = true;
+    return;
+  }
+
+  generateSection.hidden = true;
+  promptSection.hidden = false;
+
+  const stageBadge = el("job-detail-stage-badge");
+  stageBadge.textContent = STAGE_LABELS[job.stage] || job.stage;
+  stageBadge.className = "badge " + (job.stage === "blocked" ? "badge-fail" : job.stage === "approved" ? "badge-ok" : "badge-muted");
+
+  const checklist = el("job-detail-checklist");
+  checklist.innerHTML = "";
+  for (const check of job.sop_check_results) {
+    const item = document.createElement("div");
+    item.className = `checklist-item ${check.status}`;
+
+    const icon = document.createElement("span");
+    icon.className = "checklist-icon";
+    icon.textContent = CHECK_ICONS[check.status] || "?";
+
+    const body = document.createElement("div");
+    body.className = "checklist-body";
+    const label = document.createElement("p");
+    label.className = "checklist-label";
+    label.textContent = check.label;
+    const detail = document.createElement("p");
+    detail.className = "checklist-detail";
+    detail.textContent = check.detail;
+    body.append(label, detail);
+
+    item.append(icon, body);
+    checklist.appendChild(item);
+  }
+
+  const promptTextarea = el("job-detail-prompt-text");
+  const approveBtn = el("job-approve-btn");
+
+  if (job.stage === "blocked") {
+    promptTextarea.hidden = true;
+    approveBtn.hidden = true;
+  } else {
+    promptTextarea.hidden = false;
+    promptTextarea.value = job.generated_prompt;
+    approveBtn.hidden = false;
+    approveBtn.textContent = job.stage === "approved" ? "Approved ✓" : "Approve Prompt";
+    approveBtn.disabled = job.stage === "approved";
+  }
+}
+
+async function runGenerate(button) {
+  if (!currentJob) return;
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Generating…";
+  try {
+    const res = await fetch(`${JOBS_API_BASE}/${currentJob.id}/generate`, { method: "POST" });
+    if (!res.ok) {
+      alert(await extractJobError(res));
+      return;
+    }
+    const job = await res.json();
+    renderJobDetail(job);
+  } finally {
+    button.disabled = false;
+    button.textContent = originalText;
+  }
+}
+
+el("job-generate-first-btn").addEventListener("click", (e) => runGenerate(e.currentTarget));
+el("job-generate-btn").addEventListener("click", (e) => {
+  if (!confirm("Regenerate this prompt? Any edits you've made will be discarded.")) return;
+  runGenerate(e.currentTarget);
+});
+
+el("job-approve-btn").addEventListener("click", async () => {
+  if (!currentJob) return;
+  const btn = el("job-approve-btn");
+  const promptText = el("job-detail-prompt-text").value;
+  btn.disabled = true;
+  btn.textContent = "Saving…";
+  try {
+    const fd = new FormData();
+    fd.append("edited_prompt", promptText);
+    const res = await fetch(`${JOBS_API_BASE}/${currentJob.id}/approve`, { method: "PUT", body: fd });
+    if (!res.ok) {
+      alert(await extractJobError(res));
+      return;
+    }
+    const job = await res.json();
+    renderJobDetail(job);
+  } finally {
+    btn.disabled = false;
+  }
+});
 
 el("job-delete-btn").addEventListener("click", async () => {
   if (!currentJob) return;

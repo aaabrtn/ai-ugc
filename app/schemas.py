@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, ConfigDict
 
-from app.models import FetchStatus, ImageKind
+from app.models import FetchStatus, ImageKind, JobStage
 
 
 class ImageOut(BaseModel):
@@ -20,6 +20,9 @@ class CharacterOut(BaseModel):
     name: str
     characteristics: str
     setting_locked: bool
+
+    persona_description: str
+    setting_description: str
 
     created_at: datetime
     updated_at: datetime
@@ -48,6 +51,21 @@ class JobImageOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class GarmentAnalysisOut(BaseModel):
+    description: str
+    back_detail: str
+    loose_elements: str
+    category_note: str
+    is_lingerie_or_sleepwear: bool
+
+
+class SopCheckOut(BaseModel):
+    id: str
+    label: str
+    status: str  # pass | fail | manual
+    detail: str
+
+
 class JobOut(BaseModel):
     id: str
     character_id: str
@@ -60,6 +78,11 @@ class JobOut(BaseModel):
 
     product_title: str
     product_description: str
+
+    stage: JobStage
+    garment_analysis: Optional[GarmentAnalysisOut]
+    generated_prompt: str
+    sop_check_results: List[SopCheckOut]
 
     created_at: datetime
 

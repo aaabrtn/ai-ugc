@@ -6,3 +6,4 @@ pydantic
 httpx
 beautifulsoup4
 playwright
+anthropic

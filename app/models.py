@@ -30,6 +30,13 @@ class Character(Base):
     # Setting reference photos — locked once first saved (see routers/characters.py)
     setting_locked = Column(Boolean, default=False, nullable=False)
 
+    # AI-vision-generated descriptions, cached here so they're computed once per
+    # character rather than on every prompt generation. Never user-edited directly —
+    # regenerated (lazily, on next prompt generation) whenever the underlying photos
+    # change. Empty until first computed (e.g. no AI vision provider configured yet).
+    persona_description = Column(Text, default="")
+    setting_description = Column(Text, default="")
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
@@ -67,10 +74,16 @@ class FetchStatus(str, enum.Enum):
     failed = "failed"
 
 
+class JobStage(str, enum.Enum):
+    fetched = "fetched"  # product photos in, no prompt generated yet
+    blocked = "blocked"  # prompt generation was refused (e.g. content-boundary check failed)
+    prompt_generated = "prompt_generated"  # prompt generated, awaiting review/edits
+    approved = "approved"  # Andrew approved the (possibly edited) prompt
+
+
 class Job(Base):
-    """A single product → video attempt. Phase 2 only covers getting the product
-    photos in (via URL fetch, with manual upload as the fallback); later phases
-    add prompt generation, KIE submission, and Drive upload on top of this row."""
+    """A single product → video attempt. Phases 3+ add KIE submission and Drive
+    upload on top of this row."""
 
     __tablename__ = "jobs"
 
@@ -84,6 +97,11 @@ class Job(Base):
 
     product_title = Column(String, default="")
     product_description = Column(Text, default="")
+
+    stage = Column(Enum(JobStage), nullable=False, default=JobStage.fetched)
+    garment_analysis_json = Column(Text, default="")  # JSON-encoded GarmentAnalysis, for display/debugging
+    generated_prompt = Column(Text, default="")
+    sop_check_results_json = Column(Text, default="")  # JSON-encoded list of check results
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 

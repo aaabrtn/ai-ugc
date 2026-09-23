@@ -30,6 +30,8 @@ def character_to_out(c: Character) -> CharacterOut:
         name=c.name,
         characteristics=c.characteristics or "",
         setting_locked=c.setting_locked,
+        persona_description=c.persona_description or "",
+        setting_description=c.setting_description or "",
         created_at=c.created_at,
         updated_at=c.updated_at,
         identity_images=[img_out(i) for i in c.identity_images],
@@ -137,6 +139,9 @@ def update_character(
     new_identity_files = [f for f in identity_images if f.filename]
     new_setting_files = [f for f in setting_images if f.filename]
 
+    identity_touched = bool(new_identity_files) or any(
+        img.kind == ImageKind.identity for img in images_to_remove
+    )
     setting_touched = bool(new_setting_files) or any(
         img.kind == ImageKind.setting for img in images_to_remove
     )
@@ -165,6 +170,13 @@ def update_character(
     character.name = name
     character.characteristics = characteristics
     character.setting_locked = True
+
+    # Cached AI-vision descriptions go stale the moment their source photos change;
+    # clearing them here means the next prompt generation regenerates from the new photos.
+    if identity_touched:
+        character.persona_description = ""
+    if setting_touched:
+        character.setting_description = ""
 
     for img in images_to_remove:
         abs_path = UPLOADS_DIR / img.file_path

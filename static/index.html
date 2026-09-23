@@ -178,6 +178,25 @@
             <h3>Product info</h3>
             <p class="hint" id="job-detail-description">&nbsp;</p>
           </section>
+
+          <section class="field-card" id="job-detail-prompt-section" hidden>
+            <div class="field-card-head">
+              <h3>Video prompt</h3>
+              <span id="job-detail-stage-badge" class="badge badge-muted"></span>
+            </div>
+            <div id="job-detail-checklist" class="checklist"></div>
+            <textarea id="job-detail-prompt-text" rows="16" class="prompt-textarea"></textarea>
+            <div class="prompt-actions">
+              <button type="button" id="job-generate-btn" class="btn btn-ghost">Regenerate&hellip;</button>
+              <button type="button" id="job-approve-btn" class="btn btn-primary">Approve Prompt</button>
+            </div>
+          </section>
+
+          <section class="field-card" id="job-detail-generate-section">
+            <h3>Video prompt</h3>
+            <p class="hint">Uses AI vision to read the character, setting, and garment photos and assemble a full SOP-validated video prompt.</p>
+            <button type="button" id="job-generate-first-btn" class="btn btn-primary">Generate Prompt</button>
+          </section>
         </div>
 
         <div class="form-actions">
