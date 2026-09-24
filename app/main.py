@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from app.background import start_video_status_poller
 from app.database import DATA_DIR, init_db
 from app.routers import characters, generations, products
 
@@ -15,6 +16,7 @@ UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 app = FastAPI(title="AI UGC Generator")
 
 init_db()
+start_video_status_poller()
 
 app.include_router(characters.router, prefix="/api/characters", tags=["characters"])
 app.include_router(products.router, prefix="/api/products", tags=["products"])

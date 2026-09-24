@@ -364,15 +364,14 @@ def submit_video(generation_id: str, db: Session = Depends(get_db)):
     return generation_to_out(g)
 
 
-@router.get("/{generation_id}/video-status", response_model=GenerationOut)
-def video_status(generation_id: str, db: Session = Depends(get_db)):
-    g = db.get(Generation, generation_id)
-    if not g:
-        raise HTTPException(404, "Script not found")
-    if g.video_status == VideoStatus.not_started:
-        raise HTTPException(400, "Video generation hasn't been submitted yet")
-    if g.video_status in (VideoStatus.success, VideoStatus.fail):
-        return generation_to_out(g)  # terminal — no need to hit KIE again
+def refresh_video_status(db: Session, g: Generation) -> Generation:
+    """Checks KIE for this generation's current task state and updates the row
+    accordingly. Shared by the /video-status endpoint (polled by the browser)
+    and the background poller (app/background.py, polled by the server itself
+    regardless of whether any browser is open) so both paths update the DB the
+    same way and a video's fate is never left depending on a tab staying open."""
+    if g.video_status in (VideoStatus.not_started, VideoStatus.success, VideoStatus.fail):
+        return g  # nothing to check — not submitted yet, or already terminal
 
     if g.video_submitted_at and datetime.utcnow() - g.video_submitted_at > POLL_TIMEOUT:
         g.video_status = VideoStatus.fail
@@ -382,12 +381,9 @@ def video_status(generation_id: str, db: Session = Depends(get_db)):
         )
         db.commit()
         db.refresh(g)
-        return generation_to_out(g)
+        return g
 
-    try:
-        detail = get_task_detail(g.kie_task_id)
-    except (KieNotConfigured, KieError) as e:
-        raise HTTPException(502, str(e)) from e
+    detail = get_task_detail(g.kie_task_id)  # KieNotConfigured/KieError left for the caller to handle
 
     state = detail.get("state", "")
     if state == "success":
@@ -412,4 +408,20 @@ def video_status(generation_id: str, db: Session = Depends(get_db)):
 
     db.commit()
     db.refresh(g)
+    return g
+
+
+@router.get("/{generation_id}/video-status", response_model=GenerationOut)
+def video_status(generation_id: str, db: Session = Depends(get_db)):
+    g = db.get(Generation, generation_id)
+    if not g:
+        raise HTTPException(404, "Script not found")
+    if g.video_status == VideoStatus.not_started:
+        raise HTTPException(400, "Video generation hasn't been submitted yet")
+
+    try:
+        g = refresh_video_status(db, g)
+    except (KieNotConfigured, KieError) as e:
+        raise HTTPException(502, str(e)) from e
+
     return generation_to_out(g)

@@ -808,6 +808,27 @@ input[type="url"]:focus { outline: none; border-color: var(--accent); background
   margin: 0.1rem 0 0;
 }
 
+.history-card-pending {
+  border-style: dashed;
+}
+
+.history-card-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  margin: 0;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.history-card-sub {
+  margin: 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
 .history-card-actions {
   display: flex;
   gap: 0.5rem;

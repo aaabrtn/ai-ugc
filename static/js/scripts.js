@@ -398,13 +398,18 @@ function renderPromptSection(script) {
   }
 }
 
+const IN_PROGRESS_VIDEO_STATUSES = ["waiting", "queuing", "generating"];
+
 // Tracks background status-polling per generation (scriptId -> setTimeout id),
 // independent of which view is currently open. A video submitted to KIE keeps
 // generating on KIE's servers regardless of what the browser is showing, so
 // polling must not stop just because the user switched tabs or navigated back
 // to the Generator's blank form -- otherwise the app loses track of it, the
 // database is never updated to "success", and it silently never appears in
-// History even though the video may have actually finished.
+// History even though the video may have actually finished. The server also
+// now polls KIE for every in-progress generation on its own (app/background.py),
+// so a finished video reaches History even if no browser was open at all --
+// this client-side polling is just for a responsive UI when one is.
 const activePolls = new Map();
 
 // Generations currently mid-submit-video-call. The one-click flows
@@ -487,13 +492,12 @@ async function resumeInProgressPolls() {
   // Runs once on load: picks back up any generation left mid-flight from a
   // previous visit (e.g. the tab was switched or the page was reloaded while
   // a video was still generating), instead of leaving it stuck and untracked.
-  const IN_PROGRESS = ["waiting", "queuing", "generating"];
   try {
     const res = await fetch(GENERATIONS_API_BASE);
     if (!res.ok) return;
     const scripts = await res.json();
     for (const script of scripts) {
-      if (IN_PROGRESS.includes(script.video_status)) {
+      if (IN_PROGRESS_VIDEO_STATUSES.includes(script.video_status)) {
         schedulePoll(script.id);
       }
     }
@@ -792,13 +796,45 @@ const historyListEl = el("history-list");
 const historyEmptyState = el("history-empty-state");
 const historySummaryEl = el("history-summary");
 
+// Listener unsubscribes from the most recent loadHistory() call, so that
+// re-rendering History (e.g. switching tabs back and forth) doesn't pile up
+// duplicate "refresh when this one finishes" subscriptions.
+let historyPollUnsubscribes = [];
+
 async function loadHistory() {
   const res = await fetch(GENERATIONS_API_BASE);
   const scripts = await res.json();
   // Already newest-first from the API.
   const finished = scripts.filter((s) => s.video_status === "success");
+  const inProgress = scripts.filter((s) => IN_PROGRESS_VIDEO_STATUSES.includes(s.video_status));
   historyListEl.innerHTML = "";
-  historyEmptyState.hidden = finished.length > 0;
+  historyEmptyState.hidden = finished.length > 0 || inProgress.length > 0;
+
+  historyPollUnsubscribes.forEach((unsubscribe) => unsubscribe());
+  historyPollUnsubscribes = [];
+
+  // Generations keep running on KIE's servers (and the app's own background
+  // poller keeps checking on them) even with no browser open at all -- this
+  // section is just so there's somewhere in the UI to see that, instead of
+  // navigating back to a blank Generator form and wondering whether
+  // anything happened. Watching each one here refreshes History the moment
+  // it finishes, without needing to flip tabs to notice.
+  if (inProgress.length) {
+    const section = document.createElement("div");
+    section.className = "history-date-group";
+    const heading = document.createElement("h3");
+    heading.className = "history-date-heading";
+    heading.textContent = "In progress";
+    const cardsEl = document.createElement("div");
+    cardsEl.className = "history-date-cards";
+    for (const script of inProgress) {
+      cardsEl.appendChild(renderInProgressCard(script));
+      historyPollUnsubscribes.push(onPollUpdate(script.id, () => loadHistory()));
+      schedulePoll(script.id);
+    }
+    section.append(heading, cardsEl);
+    historyListEl.appendChild(section);
+  }
 
   // Grouped up front (rather than streamed) so each day's heading can show
   // that day's total cost, which requires knowing the whole group first.
@@ -944,6 +980,47 @@ function renderHistoryCard(script) {
   });
 
   actions.append(viewBtn, buildDownloadLink(script, "btn btn-primary btn-sm"));
+  card.appendChild(actions);
+
+  return card;
+}
+
+function formatVideoStatusLabel(status) {
+  if (status === "generating") return "Generating…";
+  return "Queued on KIE…"; // waiting / queuing
+}
+
+function renderInProgressCard(script) {
+  const card = document.createElement("div");
+  card.className = "history-card history-card-pending";
+
+  const status = document.createElement("p");
+  status.className = "history-card-status";
+  const spinner = document.createElement("span");
+  spinner.className = "sf-progress-spinner";
+  status.append(spinner, document.createTextNode(formatVideoStatusLabel(script.video_status)));
+  card.appendChild(status);
+
+  const title = document.createElement("h3");
+  title.textContent = formatTimeOnly(script.created_at);
+  card.appendChild(title);
+
+  const sub = document.createElement("p");
+  sub.className = "history-card-sub";
+  sub.textContent = `${script.character.name} × ${script.product.name}`;
+  card.appendChild(sub);
+
+  const actions = document.createElement("div");
+  actions.className = "history-card-actions";
+  const viewBtn = document.createElement("button");
+  viewBtn.type = "button";
+  viewBtn.className = "btn btn-ghost btn-sm";
+  viewBtn.textContent = "Open script";
+  viewBtn.addEventListener("click", () => {
+    switchTab("scripts");
+    showScriptDetail(script);
+  });
+  actions.appendChild(viewBtn);
   card.appendChild(actions);
 
   return card;
