@@ -31,10 +31,14 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* Grid, not flex space-between: with 3 flex children, the middle one (.tabs)
+   visibly shifts whenever .topbar-actions' width changes (its "+ New X"
+   button showing/hiding per tab). A grid's centre column stays put
+   regardless of what the outer columns contain. */
 .topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
   padding: 1.1rem 2.5rem;
   background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(8px);
@@ -43,6 +47,10 @@ body {
   top: 0;
   z-index: 10;
 }
+
+.brand { justify-self: start; }
+.tabs { justify-self: center; }
+.topbar-actions { justify-self: end; }
 
 .brand {
   display: flex;
@@ -276,6 +284,7 @@ main {
   gap: 1.25rem;
 }
 .form-grid .field-card:last-child { grid-column: 1 / -1; }
+.field-card-full { grid-column: 1 / -1; }
 
 .field-card {
   background: var(--surface);
@@ -345,9 +354,15 @@ textarea:focus {
 
 /* Generator form only: Create Prompt anchored left, Generate Video anchored
    right, rather than clustered together at one end like every other form's
-   Cancel/Save pair. */
+   Cancel/Save pair. margin-left: auto on Generate Video (rather than relying
+   on space-between) keeps it pinned to the right even when Create Prompt is
+   hidden (batch mode, count > 1) instead of the lone remaining button
+   jumping to the left. */
 #script-form .form-actions {
-  justify-content: space-between;
+  justify-content: flex-start;
+}
+#script-create-and-generate-btn {
+  margin-left: auto;
 }
 
 .error {
@@ -535,7 +550,8 @@ select {
 }
 select:focus { outline: none; border-color: var(--accent); background: var(--surface); }
 
-input[type="url"] {
+input[type="url"],
+.field-card input[type="text"] {
   display: block;
   width: 100%;
   padding: 0.6rem 0.7rem;
@@ -546,7 +562,18 @@ input[type="url"] {
   background: var(--surface-alt);
   color: var(--text);
 }
-input[type="url"]:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+input[type="url"]:focus,
+.field-card input[type="text"]:focus { outline: none; border-color: var(--accent); background: var(--surface); }
+
+/* Read-only fields (e.g. KIE Character ID, set only via "Register with KIE")
+   read as static/display-only rather than an editable box a user could type
+   into. */
+.field-card input[type="text"][readonly] {
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+.field-card input[type="text"][readonly]:focus { border-color: var(--border); }
 
 .job-list {
   display: grid;
@@ -848,28 +875,79 @@ input[type="url"]:focus { outline: none; border-color: var(--accent); background
 }
 
 .history-summary {
-  margin-bottom: 1.1rem;
-  padding: 0.75rem 1rem;
-  border-radius: var(--radius-md);
-  background: var(--surface-alt);
-  border: 1px solid var(--border);
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: var(--text);
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
 }
-.history-summary p {
+
+.history-stat {
+  padding: 1.1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+.history-stat p {
   margin: 0;
 }
-.history-summary p + p {
-  margin-top: 0.25rem;
+
+.history-stat-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.4rem !important;
 }
-.history-summary-total {
-  font-size: 1rem;
+
+.history-stat-value {
+  font-size: 1.65rem;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+
+.history-stat-sub {
+  font-size: 0.78rem;
+  font-weight: 500;
+  margin-top: 0.3rem !important;
+}
+
+/* Total is the hero stat -- filled with the brand colour so it reads as the
+   headline figure at a glance, the two rolling windows sit as lighter,
+   secondary cards beside it. */
+.history-stat-total {
+  background: linear-gradient(135deg, var(--accent), #e2794f);
+  border-color: transparent;
+}
+.history-stat-total .history-stat-label { color: rgba(255, 255, 255, 0.85); }
+.history-stat-total .history-stat-value { color: #ffffff; }
+.history-stat-total .history-stat-sub { color: rgba(255, 255, 255, 0.85); }
+
+.history-stat-30,
+.history-stat-7 {
+  background: var(--surface-alt);
+}
+.history-stat-30 .history-stat-label,
+.history-stat-7 .history-stat-label {
+  color: var(--text-muted);
+}
+.history-stat-30 .history-stat-value,
+.history-stat-7 .history-stat-value {
   color: var(--text);
 }
-.history-summary .hint-inline {
-  font-weight: 500;
+.history-stat-30 .history-stat-sub,
+.history-stat-7 .history-stat-sub {
   color: var(--text-muted);
+}
+
+/* A small colour cue distinguishing the two rolling windows from each other
+   without competing with the Total tile's solid fill. */
+.history-stat-30 { border-top: 3px solid var(--border-strong); }
+.history-stat-7 { border-top: 3px solid var(--ok); }
+
+@media (max-width: 720px) {
+  .history-summary { grid-template-columns: 1fr; }
 }
 
 /* ---------- Generator: inline chronological progress ---------- */
@@ -930,7 +1008,8 @@ input[type="url"]:focus { outline: none; border-color: var(--accent); background
 .sf-progress-step .btn { margin-top: 0.6rem; }
 
 @media (max-width: 720px) {
-  .topbar { padding: 1rem 1.25rem; flex-wrap: wrap; gap: 0.75rem; }
+  .topbar { grid-template-columns: 1fr; justify-items: center; padding: 1rem 1.25rem; row-gap: 0.75rem; }
+  .brand, .tabs, .topbar-actions { justify-self: center; }
   main { padding: 1.5rem 1.1rem 4rem; }
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .field-card:last-child { grid-column: auto; }

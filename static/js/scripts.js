@@ -1054,15 +1054,31 @@ function formatGenerationId(script) {
   return `${day}-${month}-${year}-${hour}-${minute}${suffix}`;
 }
 
-function costSummaryLine(label, group) {
-  const known = group.filter((s) => s.total_cost_usd !== null && s.total_cost_usd !== undefined);
-  if (!known.length) return `${label}: no cost data yet for ${group.length} video${group.length === 1 ? "" : "s"}`;
-  const total = known.reduce((sum, s) => sum + s.total_cost_usd, 0);
-  const coverage = known.length === group.length ? "" : ` (cost known for ${known.length} of ${group.length})`;
-  return `${label}: ~${formatCost(total)} across ${group.length} video${group.length === 1 ? "" : "s"}${coverage}`;
-}
-
 const DAY_MS = 24 * 60 * 60 * 1000;
+
+function buildHistoryStat(label, group, variant) {
+  const tile = document.createElement("div");
+  tile.className = `history-stat history-stat-${variant}`;
+
+  const labelEl = document.createElement("p");
+  labelEl.className = "history-stat-label";
+  labelEl.textContent = label;
+
+  const known = group.filter((s) => s.total_cost_usd !== null && s.total_cost_usd !== undefined);
+  const total = known.reduce((sum, s) => sum + s.total_cost_usd, 0);
+
+  const valueEl = document.createElement("p");
+  valueEl.className = "history-stat-value";
+  valueEl.textContent = group.length ? (known.length ? `~${formatCost(total)}` : "—") : "$0.00";
+
+  const subEl = document.createElement("p");
+  subEl.className = "history-stat-sub";
+  const coverage = known.length && known.length !== group.length ? ` · ${known.length}/${group.length} costed` : "";
+  subEl.textContent = `${group.length} video${group.length === 1 ? "" : "s"}${coverage}`;
+
+  tile.append(labelEl, valueEl, subEl);
+  return tile;
+}
 
 function renderHistorySummary(finished) {
   if (!finished.length) {
@@ -1075,14 +1091,11 @@ function renderHistorySummary(finished) {
 
   historySummaryEl.hidden = false;
   historySummaryEl.innerHTML = "";
-  const totalLine = document.createElement("p");
-  totalLine.className = "history-summary-total";
-  totalLine.textContent = costSummaryLine("Total", finished);
-  const last30Line = document.createElement("p");
-  last30Line.textContent = costSummaryLine("Last 30 days", last30);
-  const last7Line = document.createElement("p");
-  last7Line.textContent = costSummaryLine("Last 7 days", last7);
-  historySummaryEl.append(totalLine, last30Line, last7Line);
+  historySummaryEl.append(
+    buildHistoryStat("Total spend", finished, "total"),
+    buildHistoryStat("Last 30 days", last30, "30"),
+    buildHistoryStat("Last 7 days", last7, "7"),
+  );
 }
 
 function renderHistoryCard(script, batchSizes) {

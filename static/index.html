@@ -86,19 +86,19 @@
               <button type="button" id="unlock-setting-btn" class="btn btn-warning" hidden>Edit locked setting&hellip;</button>
             </section>
 
-            <section class="field-card">
+            <section class="field-card field-card-full">
               <h3>Characteristics</h3>
               <p class="hint">Optional additional context — the reference photos already do most of the work.</p>
               <textarea id="f-characteristics" rows="4" placeholder="e.g. freckles across the nose, small gold hoop earrings, soft natural smile..."></textarea>
             </section>
 
-            <section class="field-card">
+            <section class="field-card field-card-full">
               <h3>KIE Character ID <span class="hint-inline">(for video generation)</span></h3>
-              <p class="hint">Register this character with KIE automatically using its reference photos, or paste in an ID from a character already created in KIE's own dashboard.</p>
+              <p class="hint">Set automatically when you register this character with KIE — not manually editable.</p>
               <button type="button" id="register-kie-btn" class="btn btn-ghost" hidden>Register with KIE</button>
               <p class="hint" id="register-kie-hint" hidden>Save this character first, then register it with KIE.</p>
               <label>Character ID
-                <input type="text" id="f-kie-character-id" placeholder="e.g. b09dbf56..." />
+                <input type="text" id="f-kie-character-id" placeholder="Not yet registered" readonly />
               </label>
               <label class="checkbox-label">
                 <input type="checkbox" id="f-kie-has-body" checked />
