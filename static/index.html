@@ -27,7 +27,6 @@
     <div class="topbar-actions">
       <button id="new-character-btn" class="btn btn-primary tab-action" data-tab="characters" hidden>+ New Character</button>
       <button id="new-product-btn" class="btn btn-primary tab-action" data-tab="products" hidden>+ New Product</button>
-      <button id="new-script-btn" class="btn btn-primary tab-action" data-tab="scripts">+ New Script</button>
     </div>
   </header>
 
@@ -224,16 +223,7 @@
     </div>
 
     <div id="scripts-tab" class="tab-panel">
-      <section id="script-list-view">
-        <div id="script-list" class="job-list"></div>
-        <div id="script-empty-state" class="empty-state" hidden>
-          <p class="empty-title">No scripts yet</p>
-          <p class="empty-sub">Pick a character and a product to generate your first script.</p>
-          <button type="button" class="btn btn-primary" id="script-empty-new-btn">+ New Script</button>
-        </div>
-      </section>
-
-      <section id="script-form-view" hidden>
+      <section id="script-form-view">
         <form id="script-form" class="character-form" novalidate>
           <div class="form-header">
             <div>
@@ -325,7 +315,7 @@
     </div>
 
     <div id="history-tab" class="tab-panel" hidden>
-      <p id="history-summary" class="history-summary" hidden></p>
+      <div id="history-summary" class="history-summary" hidden></div>
       <div id="history-list" class="history-list"></div>
       <div id="history-empty-state" class="empty-state" hidden>
         <p class="empty-title">No finished videos yet</p>

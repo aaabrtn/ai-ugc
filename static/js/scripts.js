@@ -4,11 +4,8 @@
 const GENERATIONS_API_BASE = "/api/generations";
 const CHARACTERS_API_BASE = "/api/characters";
 
-const scriptListView = el("script-list-view");
 const scriptFormView = el("script-form-view");
 const scriptDetailView = el("script-detail-view");
-const scriptListEl = el("script-list");
-const scriptEmptyState = el("script-empty-state");
 const scriptForm = el("script-form");
 const scriptFormError = el("script-form-error");
 const scriptCharacterSelect = el("sf-character");
@@ -36,17 +33,8 @@ const VIDEO_STATUS_LABELS = {
 
 // ---------- View switching ----------
 
-function showScriptList() {
-  stopPolling();
-  scriptFormView.hidden = true;
-  scriptDetailView.hidden = true;
-  scriptListView.hidden = false;
-  loadScripts();
-}
-
 function showScriptForm() {
   stopPolling();
-  scriptListView.hidden = true;
   scriptDetailView.hidden = true;
   scriptFormView.hidden = false;
   resetScriptForm();
@@ -54,68 +42,13 @@ function showScriptForm() {
 }
 
 function showScriptDetail(script) {
-  scriptListView.hidden = true;
   scriptFormView.hidden = true;
   scriptDetailView.hidden = false;
   renderScriptDetail(script);
 }
 
-el("new-script-btn").addEventListener("click", showScriptForm);
-el("script-empty-new-btn").addEventListener("click", showScriptForm);
-el("script-cancel-btn").addEventListener("click", showScriptList);
-el("script-detail-back-btn").addEventListener("click", showScriptList);
-
-// ---------- List ----------
-
-async function loadScripts() {
-  const res = await fetch(GENERATIONS_API_BASE);
-  const scripts = await res.json();
-  scriptListEl.innerHTML = "";
-  scriptEmptyState.hidden = scripts.length > 0;
-  for (const script of scripts) {
-    scriptListEl.appendChild(renderScriptCard(script));
-  }
-}
-
-function renderScriptCard(script) {
-  const card = document.createElement("div");
-  card.className = "job-card";
-  card.addEventListener("click", () => showScriptDetail(script));
-
-  const thumb = document.createElement("div");
-  if (script.product.thumbnail_url) {
-    thumb.className = "thumb";
-    const img = document.createElement("img");
-    img.src = script.product.thumbnail_url;
-    thumb.appendChild(img);
-  } else {
-    thumb.className = "thumb";
-    thumb.textContent = "No photo";
-  }
-
-  const body = document.createElement("div");
-  body.className = "job-card-body";
-
-  const title = document.createElement("h3");
-  title.textContent = `${script.character.name} × ${script.product.name}`;
-
-  const meta = document.createElement("p");
-  meta.className = "job-card-url";
-  meta.textContent = formatDate(script.created_at);
-
-  const badge = document.createElement("span");
-  if (script.stage === "approved" && script.video_status !== "not_started") {
-    badge.className = "badge " + (script.video_status === "success" ? "badge-ok" : script.video_status === "fail" ? "badge-fail" : "badge-muted");
-    badge.textContent = "Video: " + (VIDEO_STATUS_LABELS[script.video_status] || script.video_status);
-  } else {
-    badge.className = "badge " + (script.stage === "blocked" ? "badge-fail" : script.stage === "approved" ? "badge-ok" : "badge-muted");
-    badge.textContent = STAGE_LABELS[script.stage] || script.stage;
-  }
-
-  body.append(title, meta, badge);
-  card.append(thumb, body);
-  return card;
-}
+el("script-cancel-btn").addEventListener("click", showScriptForm);
+el("script-detail-back-btn").addEventListener("click", showScriptForm);
 
 // ---------- Create form ----------
 
@@ -624,7 +557,7 @@ el("script-delete-btn").addEventListener("click", async () => {
   if (!confirm("Delete this script? This cannot be undone.")) return;
   const res = await fetch(`${GENERATIONS_API_BASE}/${currentScript.id}`, { method: "DELETE" });
   if (res.ok) {
-    showScriptList();
+    showScriptForm();
   } else {
     alert("Failed to delete script.");
   }
@@ -648,20 +581,37 @@ async function loadHistory() {
   renderHistorySummary(finished);
 }
 
+function scriptDate(script) {
+  // Same naive-UTC handling as formatDate: server timestamps have no offset.
+  return new Date(script.created_at.endsWith("Z") ? script.created_at : `${script.created_at}Z`);
+}
+
+function costSummaryLine(label, group) {
+  const known = group.filter((s) => s.total_cost_usd !== null && s.total_cost_usd !== undefined);
+  if (!known.length) return `${label}: no cost data yet for ${group.length} video${group.length === 1 ? "" : "s"}`;
+  const total = known.reduce((sum, s) => sum + s.total_cost_usd, 0);
+  const coverage = known.length === group.length ? "" : ` (cost known for ${known.length} of ${group.length})`;
+  return `${label}: ~${formatCost(total)} across ${group.length} video${group.length === 1 ? "" : "s"}${coverage}`;
+}
+
 function renderHistorySummary(finished) {
   if (!finished.length) {
     historySummaryEl.hidden = true;
     return;
   }
-  const known = finished.filter((s) => s.total_cost_usd !== null && s.total_cost_usd !== undefined);
-  if (!known.length) {
-    historySummaryEl.hidden = true;
-    return;
-  }
-  const total = known.reduce((sum, s) => sum + s.total_cost_usd, 0);
-  const coverage = known.length === finished.length ? "" : ` <span class="hint-inline">(cost known for ${known.length} of ${finished.length})</span>`;
+  const now = new Date();
+  const thisMonth = finished.filter((s) => {
+    const d = scriptDate(s);
+    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+  });
+
   historySummaryEl.hidden = false;
-  historySummaryEl.innerHTML = `Total spent: ~${formatCost(total)} across ${finished.length} video${finished.length === 1 ? "" : "s"}${coverage}`;
+  historySummaryEl.innerHTML = "";
+  const monthLine = document.createElement("p");
+  monthLine.textContent = costSummaryLine("This month", thisMonth);
+  const totalLine = document.createElement("p");
+  totalLine.textContent = costSummaryLine("All time", finished);
+  historySummaryEl.append(monthLine, totalLine);
 }
 
 function renderHistoryCard(script) {
@@ -693,6 +643,6 @@ function renderHistoryCard(script) {
   return card;
 }
 
-// Scripts is the app's home view, so load it immediately rather than waiting
-// for a tab click.
-loadScripts();
+// The Generator is the app's home view, so show the form immediately rather
+// than waiting for a tab click. Past generations live in History instead.
+showScriptForm();

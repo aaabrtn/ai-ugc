@@ -52,7 +52,7 @@ function switchTab(tab) {
   } else if (tab === "products") {
     showProductList();
   } else if (tab === "scripts") {
-    showScriptList();
+    showScriptForm();
   } else if (tab === "history") {
     loadHistory();
   }
