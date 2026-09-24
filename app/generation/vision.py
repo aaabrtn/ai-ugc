@@ -234,6 +234,18 @@ Respond with ONLY a JSON object (no markdown fences, no other text), with this e
 with exactly {count} entries in the "variations" array."""
 
 
+# Observed failure: 400 tokens/variation + 400 base (1600 for a 3-video batch)
+# wasn't enough -- Claude's response got cut off mid-string, producing
+# "Unterminated string" from the JSON parser. This is comfortably larger
+# (1200/variation + 800 base), and generate_movement_variations also detects
+# a genuine max_tokens cutoff explicitly (via the API's own stop_reason,
+# rather than inferring it from a JSON parse failure) and retries once with
+# double the budget before giving up -- so a still-too-tight estimate no
+# longer silently fails an entire batch.
+MOVEMENT_VARIATION_MAX_TOKENS_PER_ITEM = 1200
+MOVEMENT_VARIATION_MAX_TOKENS_BASE = 800
+
+
 def generate_movement_variations(count: int, garment: GarmentAnalysis) -> tuple[list[list[str]], VisionUsage]:
     """Writes `count` distinct 5-beat choreography variations for the SOP's
     fixed 5-cut structure/timing -- so a batch of videos for the same
@@ -253,14 +265,28 @@ def generate_movement_variations(count: int, garment: GarmentAnalysis) -> tuple[
         loose_elements=garment.loose_elements or "none",
     )
     client = _client()
-    try:
-        message = client.messages.create(
-            model=VISION_MODEL,
-            max_tokens=400 * count + 400,
-            messages=[{"role": "user", "content": instruction}],
-        )
-    except anthropic.APIError as e:
-        raise VisionError(f"The AI request for movement variations failed: {e}") from e
+    max_tokens = MOVEMENT_VARIATION_MAX_TOKENS_PER_ITEM * count + MOVEMENT_VARIATION_MAX_TOKENS_BASE
+
+    def _call(tokens: int):
+        try:
+            return client.messages.create(
+                model=VISION_MODEL,
+                max_tokens=tokens,
+                messages=[{"role": "user", "content": instruction}],
+            )
+        except anthropic.APIError as e:
+            raise VisionError(f"The AI request for movement variations failed: {e}") from e
+
+    message = _call(max_tokens)
+    if message.stop_reason == "max_tokens":
+        # The budget above genuinely wasn't enough for this particular response --
+        # retry once with double, rather than failing the whole batch outright.
+        message = _call(max_tokens * 2)
+        if message.stop_reason == "max_tokens":
+            raise VisionError(
+                "The AI's response for movement variations was cut off (ran out of output tokens) twice "
+                "in a row, even after doubling the budget -- try a smaller batch count, or try again."
+            )
 
     text = "".join(block.text for block in message.content if block.type == "text").strip()
     if not text:
