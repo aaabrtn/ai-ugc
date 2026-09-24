@@ -21,6 +21,38 @@ USER_AGENT = (
 # Filename fragments that mean "this is chrome, not the product" — logos, icons, tracking pixels.
 NON_PRODUCT_HINTS = ("logo", "icon", "sprite", "favicon", "pixel", "spinner", "placeholder", "avatar")
 
+# Phrases that mean the page served is a bot-verification/CAPTCHA challenge, not the real
+# product page — TikTok Shop in particular does this to automated clients. These pages
+# still have <img> tags (the puzzle piece, the slider background), which the broad
+# "scan every <img>" extraction below would otherwise happily accept as product photos —
+# a silent wrong-image bug that's worse than an honest failure. Checked before any image
+# extraction so those images are never even considered, on any of the three methods.
+VERIFICATION_PAGE_SIGNALS = (
+    "verify you are human",
+    "verify to continue",
+    "complete the security check",
+    "drag the slider",
+    "slide to verify",
+    "slide to complete the puzzle",
+    "complete the puzzle",
+    "unusual traffic",
+    "checking your browser",
+    "just a moment...",
+    "captcha",
+    "robot check",
+    "are you a robot",
+    "access denied",
+    "security check",
+)
+
+
+def _verification_page_reason(html: str) -> str:
+    lower = html.lower()
+    for signal in VERIFICATION_PAGE_SIGNALS:
+        if signal in lower:
+            return signal
+    return ""
+
 
 @dataclass
 class FetchResult:
@@ -137,6 +169,13 @@ def fetch_structured_data(url: str, timeout: float = 10.0) -> FetchResult:
     if resp.status_code >= 400:
         return FetchResult(method="structured_data", error=f"the site returned HTTP {resp.status_code}")
 
+    verification_signal = _verification_page_reason(resp.text)
+    if verification_signal:
+        return FetchResult(
+            method="structured_data",
+            error=f'the site served a bot-verification challenge instead of the product page (detected "{verification_signal}")',
+        )
+
     result = _extract_from_html(resp.text, str(resp.url), broad=False)
     result.method = "structured_data"
     if not result.success:
@@ -156,6 +195,13 @@ def fetch_html_scrape(url: str, timeout: float = 10.0) -> FetchResult:
 
     if resp.status_code >= 400:
         return FetchResult(method="html_scrape", error=f"the site returned HTTP {resp.status_code}")
+
+    verification_signal = _verification_page_reason(resp.text)
+    if verification_signal:
+        return FetchResult(
+            method="html_scrape",
+            error=f'the site served a bot-verification challenge instead of the product page (detected "{verification_signal}")',
+        )
 
     result = _extract_from_html(resp.text, str(resp.url), broad=True)
     result.method = "html_scrape"
@@ -177,12 +223,23 @@ def fetch_headless_browser(url: str, timeout_ms: int = 20000) -> FetchResult:
 
     try:
         with sync_playwright() as p:
-            launch_kwargs = {"headless": True}
+            # --disable-blink-features=AutomationControlled + masking navigator.webdriver
+            # are cheap, standard reductions in how obviously "headless" this looks to a
+            # site's bot detection — they lower the odds of triggering a CAPTCHA (TikTok
+            # Shop especially) but don't guarantee bypassing it. When they don't work, the
+            # verification-page check below still catches it and fails cleanly instead of
+            # returning the CAPTCHA's own images as if they were the product's.
+            launch_kwargs = {"headless": True, "args": ["--disable-blink-features=AutomationControlled"]}
             if executable_path:
                 launch_kwargs["executable_path"] = executable_path
             browser = p.chromium.launch(**launch_kwargs)
             try:
-                page = browser.new_page(user_agent=USER_AGENT, viewport={"width": 1280, "height": 900})
+                page = browser.new_page(
+                    user_agent=USER_AGENT,
+                    viewport={"width": 1280, "height": 900},
+                    locale="en-US",
+                )
+                page.add_init_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
                 page.goto(url, wait_until="networkidle", timeout=timeout_ms)
                 html = page.content()
                 page_title = page.title()
@@ -191,6 +248,17 @@ def fetch_headless_browser(url: str, timeout_ms: int = 20000) -> FetchResult:
     except Exception as e:  # noqa: BLE001 — surfacing to the user, not handling specific cases
         detail = str(e).strip().splitlines()[0] if str(e).strip() else e.__class__.__name__
         return FetchResult(method="headless_browser", error=f"the browser couldn't load the page ({detail})")
+
+    verification_signal = _verification_page_reason(html) or _verification_page_reason(page_title or "")
+    if verification_signal:
+        return FetchResult(
+            method="headless_browser",
+            error=(
+                f'the site served a bot-verification challenge instead of the product page (detected '
+                f'"{verification_signal}") — this happens especially on TikTok Shop; manual photos are the '
+                "reliable path here"
+            ),
+        )
 
     result = _extract_from_html(html, url, broad=True)
     result.method = "headless_browser"
