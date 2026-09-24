@@ -804,6 +804,13 @@ input[type="url"]:focus { outline: none; border-color: var(--accent); background
   color: var(--text-muted);
 }
 
+.history-card-id {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+}
+
 .history-card .video-result-cost {
   margin: 0.1rem 0 0;
 }

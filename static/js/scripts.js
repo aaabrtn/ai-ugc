@@ -911,9 +911,18 @@ function formatDateHeading(script) {
   });
 }
 
-function formatTimeOnly(isoString) {
+// Doubles as this generation's ID on History cards: DD-MM-YY-HH-MM of when
+// it was created, unique enough at a glance (down to the minute) without
+// needing a separate generated name or UUID fragment.
+function formatGenerationId(isoString) {
   const d = new Date(isoString.endsWith("Z") ? isoString : `${isoString}Z`);
-  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+  const pad = (n) => String(n).padStart(2, "0");
+  const day = pad(d.getDate());
+  const month = pad(d.getMonth() + 1);
+  const year = pad(d.getFullYear() % 100);
+  const hour = pad(d.getHours());
+  const minute = pad(d.getMinutes());
+  return `${day}-${month}-${year}-${hour}-${minute}`;
 }
 
 function costSummaryLine(label, group) {
@@ -956,12 +965,12 @@ function renderHistoryCard(script) {
   video.src = script.video_url;
   card.appendChild(video);
 
-  // Cards are grouped under a date heading (see loadHistory), so the card
-  // itself just needs the time — that's the unique, simple reference within
-  // a day, instead of the character/product name (which repeats across cards
-  // whenever the same outfit gets generated more than once).
+  // DD-MM-YY-HH-MM of when this generation was created -- its ID, unique and
+  // simple, instead of the character/product name (which repeats across
+  // cards whenever the same outfit gets generated more than once).
   const title = document.createElement("h3");
-  title.textContent = formatTimeOnly(script.created_at);
+  title.className = "history-card-id";
+  title.textContent = formatGenerationId(script.created_at);
   card.appendChild(title);
 
   const costLine = buildTotalCostLine(script);
@@ -1002,7 +1011,8 @@ function renderInProgressCard(script) {
   card.appendChild(status);
 
   const title = document.createElement("h3");
-  title.textContent = formatTimeOnly(script.created_at);
+  title.className = "history-card-id";
+  title.textContent = formatGenerationId(script.created_at);
   card.appendChild(title);
 
   const sub = document.createElement("p");
