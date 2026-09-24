@@ -284,6 +284,17 @@ function renderPromptSection(script) {
 // History even though the video may have actually finished.
 const activePolls = new Map();
 
+// Generations currently mid-submit-video-call. The one-click flows
+// (generateApproveAndSubmit) re-render the video section right after the
+// approve step, before the submit-video call has actually started — at that
+// instant stage is "approved" and video_status is still "not_started", which
+// is exactly the state that normally shows a live, clickable "Generate
+// Video" button. Without this guard a click in that brief window fires a
+// second, independent submission (the backend now also refuses a second
+// submit-video call as a hard guard, but this stops the button from ever
+// appearing clickable in the first place).
+const submittingVideoIds = new Set();
+
 function stopPolling(scriptId) {
   const timer = activePolls.get(scriptId);
   if (timer) clearTimeout(timer);
@@ -364,7 +375,10 @@ function renderVideoSection(script) {
   videoResult.innerHTML = "";
   videoResult.hidden = true;
 
-  if (script.video_status === "not_started") {
+  if (script.video_status === "not_started" && submittingVideoIds.has(script.id)) {
+    hint.textContent = "Submitting to KIE…";
+    submitBtn.hidden = true;
+  } else if (script.video_status === "not_started") {
     hint.textContent = "Submits the approved prompt, the character, and its setting/garment reference photos to KIE.";
     submitBtn.hidden = false;
     submitBtn.disabled = false;
@@ -536,12 +550,20 @@ async function generateApproveAndSubmit(script, { onStatus, onStep } = {}) {
   res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/approve`, { method: "PUT", body: fd });
   if (!res.ok) throw new StepError(await extractScriptError(res), script);
   script = await res.json();
+  // Mark as "about to submit" before the render below, so it never exposes a
+  // live, clickable Generate Video button in the gap before the submit-video
+  // call actually starts (see submittingVideoIds above).
+  submittingVideoIds.add(script.id);
   onStep?.(script);
 
   onStatus?.("Submitting video…");
-  res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/submit-video`, { method: "POST" });
-  if (!res.ok) throw new StepError(await extractScriptError(res), script);
-  script = await res.json();
+  try {
+    res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/submit-video`, { method: "POST" });
+    if (!res.ok) throw new StepError(await extractScriptError(res), script);
+    script = await res.json();
+  } finally {
+    submittingVideoIds.delete(script.id);
+  }
   onStep?.(script);
 
   return script;

@@ -264,6 +264,18 @@ def submit_video(generation_id: str, db: Session = Depends(get_db)):
         raise HTTPException(404, "Script not found")
     if g.stage != GenerationStage.approved:
         raise HTTPException(400, "Approve the prompt before generating a video")
+    # Idempotency guard: a task already in flight or already finished must never be
+    # resubmitted — a second click (or the one-click flow's own brief in-between
+    # render exposing this same button while it's already mid-submit) would create
+    # a second real, separately-billed KIE task with no way to reconcile which one
+    # "wins." Only not_started (never submitted) or fail (previous attempt failed,
+    # legitimately eligible for "Try Again") may proceed.
+    if g.video_status not in (VideoStatus.not_started, VideoStatus.fail):
+        raise HTTPException(
+            409,
+            f"A video is already {g.video_status.value} for this script — refusing to submit a second one. "
+            "Wait for it to finish, or check History.",
+        )
 
     character = g.character
     if not character.kie_character_id:
