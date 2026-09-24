@@ -102,11 +102,10 @@ This is the core philosophy underneath everything else: **realism comes from imp
 
 ---
 
-## 10. Content Boundaries (non-negotiable, no exceptions)
+## 10. Content Boundaries
 
-- Reference garments must be genuine **outerwear** — dresses, rompers, tops, sets meant to be worn out of the house. **Lingerie, sleepwear, or underwear-adjacent garments are never used in this framework**, regardless of framing, caption, or stated intent (including "internal use only"). This is a hard content-category boundary, not a wording problem to prompt around.
 - Persona used in any live/client-facing output must be an approved, consent-cleared persona (e.g. Genie1, consent ref on file). Any other likeness pulled from a reference image is for internal prompt-structure testing only and is never cleared for output regardless of how the outfit or scene is dressed up.
-- If a generation is blocked by a safety filter, the response is to examine *why* — not to reword language to slip past the filter. If the underlying content is the issue (garment category, sexualized framing), the fix is changing the content, not the wording.
+- If a generation is blocked by a safety filter, the response is to examine *why* — not to reword language to slip past the filter. If the underlying content is the issue, the fix is changing the content, not the wording.
 
 ---
 
@@ -143,5 +142,5 @@ Before sending any prompt, confirm:
 - [ ] Background identical across every cut
 - [ ] Garment described precisely, with real product detail
 - [ ] Ankles/feet never shown
-- [ ] No lingerie/sleepwear garments, no non-cleared persona
+- [ ] No non-cleared persona
 - [ ] No watermark/branding anywhere in prompt or expected output

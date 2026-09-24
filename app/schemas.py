@@ -92,7 +92,6 @@ class GarmentAnalysisOut(BaseModel):
     back_detail: str
     loose_elements: str
     category_note: str
-    is_lingerie_or_sleepwear: bool
 
 
 class SopCheckOut(BaseModel):

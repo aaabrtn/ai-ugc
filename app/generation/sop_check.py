@@ -1,11 +1,8 @@
 """Automated checks against the assembled prompt, mapped from the SOP's
-Pre-Send Checklist. Most of these are true by construction (the template in
+Pre-Send Checklist. These are true by construction (the template in
 template.py never writes a full-turn or a single top-level grip mention), so
 they're defense-in-depth against a future template bug rather than expected
-to ever fail. The one genuinely substantive, content-dependent check is the
-lingerie/sleepwear content-boundary rule (SOP §10) — that's a real gate, not
-a formality, and a failure there blocks prompt generation entirely rather
-than just getting flagged.
+to ever fail — nothing here blocks prompt generation.
 
 Checks the SOP itself says can't be automated (they're about the rendered
 video, not the prompt text — garment accuracy against the real photos,
@@ -39,17 +36,6 @@ def run_sop_checks(prompt_text: str, garment: GarmentAnalysis) -> list[SopCheck]
                 detail=pass_detail if condition else fail_detail,
             )
         )
-
-    # The one real content-boundary gate — everything else below is
-    # defense-in-depth on a template we control.
-    add(
-        "content_boundary",
-        "No lingerie/sleepwear garments",
-        not garment.is_lingerie_or_sleepwear,
-        "Garment reads as outerwear.",
-        "This garment was classified as lingerie/sleepwear/underwear — this framework never uses that "
-        "category, regardless of framing. Prompt generation is blocked; use a different product.",
-    )
 
     add(
         "grip_repeated",

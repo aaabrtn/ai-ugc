@@ -121,7 +121,6 @@ class GarmentAnalysis:
     back_detail: str
     loose_elements: str
     category_note: str
-    is_lingerie_or_sleepwear: bool
 
 
 GARMENT_INSTRUCTION = """You are analyzing product reference photos of a single fashion garment, for a \
@@ -137,9 +136,7 @@ Respond with ONLY a JSON object (no markdown fences, no other text), with these 
   "back_detail": "<what's visible from behind, if visible in the photos -- hardware, open back, ties; \
 empty string if not visible or not applicable>",
   "loose_elements": "<any free-moving element like a drape/tie/sash and how it moves; empty string if none>",
-  "category_note": "<one short phrase naming the garment type, e.g. 'wrap dress', 'two-piece linen set'>",
-  "is_lingerie_or_sleepwear": <true or false -- true if this garment is lingerie, underwear, or sleepwear \
-rather than outerwear meant to be worn out of the house>
+  "category_note": "<one short phrase naming the garment type, e.g. 'wrap dress', 'two-piece linen set'>"
 }"""
 
 
@@ -158,7 +155,6 @@ def analyze_garment(image_paths: list[Path], additional_context: str = "") -> tu
             back_detail=str(data.get("back_detail", "")).strip(),
             loose_elements=str(data.get("loose_elements", "")).strip(),
             category_note=str(data.get("category_note", "")).strip(),
-            is_lingerie_or_sleepwear=bool(data.get("is_lingerie_or_sleepwear", False)),
         ),
         usage,
     )

@@ -490,7 +490,9 @@ async function generateApproveAndSubmit(script, { onStatus, onStep } = {}) {
   onStep?.(script);
 
   if (script.stage === "blocked") {
-    // Stop here — never auto-approve/submit a prompt an SOP check blocked.
+    // No current check actually blocks (the one that did, the content-boundary
+    // rule, was removed) — this is just defensive: if a check ever becomes
+    // blocking again, this never auto-approves/submits past it.
     return script;
   }
 
