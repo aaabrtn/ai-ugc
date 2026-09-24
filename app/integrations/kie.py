@@ -89,6 +89,29 @@ def upload_public_image(path: Path) -> str:
     return file_url
 
 
+# Credits per video, from KIE's own published pricing table for this model
+# (gemini-omni-flash-1-1 / "Gemini Omni Video"), the "no video input" rows —
+# this app only ever sends image_urls/character_ids, never a source video to
+# transform. 360p/720p/1080p share one price per duration; only 4K costs
+# more. Aspect ratio isn't priced separately (KIE's table has no row for it),
+# so it doesn't factor into cost at all.
+CREDIT_TABLE = {
+    ("8", "720p"): 105,
+    ("8", "1080p"): 105,
+    ("8", "4k"): 189,
+    ("10", "720p"): 126,
+    ("10", "1080p"): 126,
+    ("10", "4k"): 210,
+}
+
+
+def credits_for(duration: str, resolution: str) -> int | None:
+    """KIE credit cost for a given duration/resolution combination, or None if
+    that combination isn't in the published table (so callers can show 'cost
+    unknown' rather than a wrong number)."""
+    return CREDIT_TABLE.get((duration, resolution))
+
+
 def image_budget(character_ids: list[str], character_uses_body: bool) -> int:
     """How many image_urls slots remain after reserving space for character_ids.
     A character with a portrait+body reference pair costs 2 slots each; a

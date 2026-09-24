@@ -161,6 +161,13 @@ class Generation(Base):
     generated_prompt = Column(Text, default="")
     sop_check_results_json = Column(Text, default="")  # JSON-encoded list of check results
 
+    # Video settings, chosen once on the Generator form and carried through to
+    # whichever flow eventually submits to KIE — duration in seconds ("8"/"10"),
+    # resolution ("720p"/"1080p"/"4k"). Also what CREDIT_TABLE is keyed on.
+    duration = Column(String, default="10", nullable=False)
+    aspect_ratio = Column(String, default="9:16", nullable=False)
+    resolution = Column(String, default="720p", nullable=False)
+
     # Video generation (Phase 3)
     kie_task_id = Column(String, default="")
     kie_model_used = Column(String, default="")

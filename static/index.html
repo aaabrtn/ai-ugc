@@ -243,17 +243,52 @@
             </section>
           </div>
 
+          <div class="form-grid sf-settings-grid">
+            <section class="field-card">
+              <h3>Duration</h3>
+              <div class="toggle-group">
+                <label class="toggle-option">
+                  <input type="radio" name="sf-duration" value="8" />
+                  <span>8s</span>
+                </label>
+                <label class="toggle-option">
+                  <input type="radio" name="sf-duration" value="10" checked />
+                  <span>10s</span>
+                </label>
+              </div>
+            </section>
+            <section class="field-card">
+              <h3>Aspect ratio</h3>
+              <select id="sf-aspect-ratio">
+                <option value="9:16" selected>9:16 (vertical)</option>
+                <option value="16:9">16:9 (horizontal)</option>
+              </select>
+            </section>
+            <section class="field-card">
+              <h3>Quality</h3>
+              <select id="sf-resolution">
+                <option value="720p" selected>720p</option>
+                <option value="1080p">1080p</option>
+                <option value="4k">4K</option>
+              </select>
+            </section>
+          </div>
+
+          <p id="sf-cost-estimate" class="cost-estimate-line">&nbsp;</p>
+
           <div class="form-actions">
             <button type="button" id="script-cancel-btn" class="btn btn-ghost">Cancel</button>
             <button type="button" id="script-create-and-generate-btn" class="btn btn-primary">Generate Video</button>
             <button type="submit" id="script-submit-btn" class="btn btn-primary">Create Script</button>
           </div>
           <p class="hint">
-            "Create Script" just pairs the character and product, so you can review the prompt before
-            approving. "Generate Video" does everything in one go — creates the script, generates the
-            prompt, approves it, and submits the video immediately.
+            "Create Script" just pairs everything up so you can review the prompt before approving.
+            "Generate Video" does everything below, in order, right here — no prompt review, no other
+            screen — and finishes with a link to the video in History.
           </p>
           <p id="script-form-error" class="error" hidden></p>
+
+          <div id="sf-progress" class="sf-progress" hidden></div>
         </form>
       </section>
 

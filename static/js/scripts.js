@@ -12,6 +12,10 @@ const scriptCharacterSelect = el("sf-character");
 const scriptProductSelect = el("sf-product");
 const scriptSubmitBtn = el("script-submit-btn");
 const scriptCreateAndGenerateBtn = el("script-create-and-generate-btn");
+const sfAspectRatioSelect = el("sf-aspect-ratio");
+const sfResolutionSelect = el("sf-resolution");
+const sfCostEstimate = el("sf-cost-estimate");
+const sfProgress = el("sf-progress");
 
 const STAGE_LABELS = {
   draft: "Draft",
@@ -54,7 +58,38 @@ el("script-detail-back-btn").addEventListener("click", showScriptForm);
 function resetScriptForm() {
   scriptForm.reset();
   scriptFormError.hidden = true;
+  sfProgress.hidden = true;
+  sfProgress.innerHTML = "";
+  updateCostEstimate();
 }
+
+function selectedDuration() {
+  return scriptForm.querySelector('input[name="sf-duration"]:checked')?.value || "10";
+}
+
+async function updateCostEstimate() {
+  const duration = selectedDuration();
+  const resolution = sfResolutionSelect.value;
+  try {
+    const res = await fetch(
+      `${GENERATIONS_API_BASE}/cost-estimate?duration=${encodeURIComponent(duration)}&resolution=${encodeURIComponent(resolution)}`,
+    );
+    const data = await res.json();
+    if (data.credits === null || data.credits === undefined) {
+      sfCostEstimate.textContent = "Estimated cost: unknown for this combination.";
+      return;
+    }
+    const usdText = data.usd !== null && data.usd !== undefined ? ` (~${formatCost(data.usd)})` : "";
+    sfCostEstimate.textContent = `Estimated cost: ~${data.credits} credits${usdText} — video generation only, AI prompt cost is a few tenths of a cent extra.`;
+  } catch {
+    sfCostEstimate.textContent = "Estimated cost: couldn't load.";
+  }
+}
+
+scriptForm.querySelectorAll('input[name="sf-duration"]').forEach((input) => {
+  input.addEventListener("change", updateCostEstimate);
+});
+sfResolutionSelect.addEventListener("change", updateCostEstimate);
 
 async function loadScriptFormOptions() {
   const [charactersRes, productsRes] = await Promise.all([
@@ -99,6 +134,16 @@ async function loadScriptFormOptions() {
   scriptSubmitBtn.disabled = !characters.length || !products.length;
 }
 
+function buildCreateGenerationFormData(characterId, productId) {
+  const fd = new FormData();
+  fd.append("character_id", characterId);
+  fd.append("product_id", productId);
+  fd.append("duration", selectedDuration());
+  fd.append("aspect_ratio", sfAspectRatioSelect.value);
+  fd.append("resolution", sfResolutionSelect.value);
+  return fd;
+}
+
 scriptForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   scriptFormError.hidden = true;
@@ -110,13 +155,12 @@ scriptForm.addEventListener("submit", async (e) => {
     return;
   }
 
-  const fd = new FormData();
-  fd.append("character_id", characterId);
-  fd.append("product_id", productId);
-
   scriptSubmitBtn.disabled = true;
   try {
-    const res = await fetch(GENERATIONS_API_BASE, { method: "POST", body: fd });
+    const res = await fetch(GENERATIONS_API_BASE, {
+      method: "POST",
+      body: buildCreateGenerationFormData(characterId, productId),
+    });
     if (!res.ok) {
       showScriptFormError(await extractScriptError(res));
       return;
@@ -128,6 +172,50 @@ scriptForm.addEventListener("submit", async (e) => {
   }
 });
 
+// ---------- Inline chronological progress (Generate Video, in place) ----------
+// Builds out below the form as each stage actually happens -- no navigation,
+// no prompt/script text shown, just what's currently running and what's done.
+
+function addProgressStep(label) {
+  const row = document.createElement("div");
+  row.className = "sf-progress-step pending";
+
+  const icon = document.createElement("span");
+  icon.className = "sf-progress-icon";
+  icon.appendChild(document.createElement("span")).className = "sf-progress-spinner";
+
+  const body = document.createElement("div");
+  body.className = "sf-progress-body";
+  const labelEl = document.createElement("p");
+  labelEl.className = "sf-progress-label";
+  labelEl.textContent = label;
+  body.appendChild(labelEl);
+
+  row.append(icon, body);
+  sfProgress.hidden = false;
+  sfProgress.appendChild(row);
+  return { row, icon, body, labelEl };
+}
+
+function markStepDone(step, newLabel) {
+  step.row.classList.remove("pending");
+  step.row.classList.add("done");
+  step.icon.textContent = "✓";
+  if (newLabel) step.labelEl.textContent = newLabel;
+}
+
+function markStepFailed(step, detail) {
+  step.row.classList.remove("pending");
+  step.row.classList.add("fail");
+  step.icon.textContent = "✕";
+  if (detail) {
+    const detailEl = document.createElement("p");
+    detailEl.className = "sf-progress-detail";
+    detailEl.textContent = detail;
+    step.body.appendChild(detailEl);
+  }
+}
+
 scriptCreateAndGenerateBtn.addEventListener("click", async () => {
   scriptFormError.hidden = true;
 
@@ -138,41 +226,80 @@ scriptCreateAndGenerateBtn.addEventListener("click", async () => {
     return;
   }
 
-  const originalText = scriptCreateAndGenerateBtn.textContent;
   scriptCreateAndGenerateBtn.disabled = true;
   scriptSubmitBtn.disabled = true;
+  el("script-cancel-btn").disabled = true;
+  sfProgress.innerHTML = "";
+  sfProgress.hidden = false;
+
+  const scriptStep = addProgressStep("Writing the script and prompt…");
 
   try {
-    const fd = new FormData();
-    fd.append("character_id", characterId);
-    fd.append("product_id", productId);
-    let res = await fetch(GENERATIONS_API_BASE, { method: "POST", body: fd });
+    let res = await fetch(GENERATIONS_API_BASE, {
+      method: "POST",
+      body: buildCreateGenerationFormData(characterId, productId),
+    });
     if (!res.ok) {
-      showScriptFormError(await extractScriptError(res));
+      markStepFailed(scriptStep, await extractScriptError(res));
       return;
     }
     let script = await res.json();
-    currentScript = script;
-    // Switch to the detail view right away so each step's progress (stage
-    // badge, then video status) is visible live, not just the final result.
-    showScriptDetail(script);
 
-    script = await generateApproveAndSubmit(script, {
-      onStep: (s) => { currentScript = s; renderScriptDetail(s); },
-    });
-    currentScript = script;
-    renderScriptDetail(script);
-  } catch (e) {
-    if (e instanceof StepError) {
-      currentScript = e.script;
-      renderScriptDetail(e.script);
-    } else {
-      alert(e.message);
+    res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/generate`, { method: "POST" });
+    if (!res.ok) {
+      markStepFailed(scriptStep, await extractScriptError(res));
+      return;
     }
+    script = await res.json();
+
+    if (script.stage === "blocked") {
+      // Defensive only -- no current SOP check actually blocks (see the
+      // comment on generateApproveAndSubmit's own blocked-stage check).
+      markStepFailed(scriptStep, "Blocked by an SOP check.");
+      return;
+    }
+
+    const approveFd = new FormData();
+    approveFd.append("edited_prompt", script.generated_prompt);
+    res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/approve`, { method: "PUT", body: approveFd });
+    if (!res.ok) {
+      markStepFailed(scriptStep, await extractScriptError(res));
+      return;
+    }
+    script = await res.json();
+    markStepDone(scriptStep);
+
+    const submitStep = addProgressStep("Submitting to KIE…");
+    res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/submit-video`, { method: "POST" });
+    if (!res.ok) {
+      markStepFailed(submitStep, await extractScriptError(res));
+      return;
+    }
+    script = await res.json();
+    markStepDone(submitStep);
+
+    const genStep = addProgressStep("Generating your video — this can take a few minutes…");
+    const finalScript = await awaitVideoCompletion(script.id);
+
+    if (finalScript.video_status === "success") {
+      markStepDone(genStep, "Video generated.");
+      const doneStep = addProgressStep("Completed");
+      const viewBtn = document.createElement("button");
+      viewBtn.type = "button";
+      viewBtn.className = "btn btn-primary btn-sm";
+      viewBtn.textContent = "View in History";
+      viewBtn.addEventListener("click", () => switchTab("history"));
+      doneStep.body.appendChild(viewBtn);
+      markStepDone(doneStep);
+    } else {
+      markStepFailed(genStep, finalScript.video_error || "Generation failed.");
+    }
+  } catch (e) {
+    markStepFailed(scriptStep, e.message || "Something went wrong.");
   } finally {
     scriptCreateAndGenerateBtn.disabled = false;
-    scriptCreateAndGenerateBtn.textContent = originalText;
     scriptSubmitBtn.disabled = false;
+    el("script-cancel-btn").disabled = false;
   }
 });
 
@@ -295,6 +422,30 @@ const activePolls = new Map();
 // appearing clickable in the first place).
 const submittingVideoIds = new Set();
 
+// Per-scriptId subscribers notified on every poll tick, not just when that
+// script's detail page happens to be open — this is what lets the inline
+// Generate Video flow on the Generator form `await` a result without a
+// second, competing polling loop of its own.
+const pollListeners = new Map();
+
+function onPollUpdate(scriptId, callback) {
+  if (!pollListeners.has(scriptId)) pollListeners.set(scriptId, new Set());
+  pollListeners.get(scriptId).add(callback);
+  return () => pollListeners.get(scriptId)?.delete(callback);
+}
+
+function awaitVideoCompletion(scriptId) {
+  return new Promise((resolve) => {
+    const unsubscribe = onPollUpdate(scriptId, (script) => {
+      if (script.video_status === "success" || script.video_status === "fail") {
+        unsubscribe();
+        resolve(script);
+      }
+    });
+    schedulePoll(scriptId);
+  });
+}
+
 function stopPolling(scriptId) {
   const timer = activePolls.get(scriptId);
   if (timer) clearTimeout(timer);
@@ -327,6 +478,8 @@ function pollTick(scriptId, attempt) {
         currentScript = script;
         renderVideoSection(script);
       }
+      const listeners = pollListeners.get(scriptId);
+      if (listeners) for (const cb of Array.from(listeners)) cb(script);
     } catch {
       pollTick(scriptId, attempt + 1);
     }
@@ -406,9 +559,10 @@ function formatCost(usd) {
   return usd < 0.01 ? `$${usd.toFixed(4)}` : `$${usd.toFixed(2)}`;
 }
 
-// Vision cost is exact (real Anthropic token usage). KIE cost is a configured
-// estimate (see KIE_CREDITS_PER_VIDEO in .env) since KIE's API has no
-// per-task price field -- labelled "~" throughout to keep that honest.
+// Vision cost is exact (real Anthropic token usage). KIE cost is looked up
+// from its published credit table for the settings actually used (duration,
+// resolution), since KIE's task-status API has no per-task price field --
+// labelled "~" throughout to keep that honest.
 function buildCostLine(script) {
   const visionKnown = script.vision_cost_usd !== null && script.vision_cost_usd !== undefined;
   const kieUsdKnown = script.kie_usd_cost !== null && script.kie_usd_cost !== undefined;

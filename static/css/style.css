@@ -458,6 +458,56 @@ textarea:focus {
 }
 .form-grid-single .field-card:last-child { grid-column: auto; }
 
+.sf-settings-grid {
+  grid-template-columns: repeat(3, 1fr);
+  margin-top: 1.25rem;
+}
+.sf-settings-grid .field-card:last-child { grid-column: auto; }
+
+.toggle-group {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.25rem;
+}
+.toggle-option {
+  position: relative;
+  flex: 1;
+  text-align: center;
+  padding: 0.45rem 0.5rem;
+  border-radius: 999px;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.toggle-option input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  margin: 0;
+  cursor: pointer;
+}
+.toggle-option:has(input:checked) {
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: var(--shadow-sm);
+}
+
+.cost-estimate-line {
+  margin: 1rem 0 0;
+  padding: 0.7rem 1rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
 .hint-inline {
   font-weight: 400;
   color: var(--text-muted);
@@ -766,6 +816,63 @@ input[type="url"]:focus { outline: none; border-color: var(--accent); background
   font-weight: 500;
   color: var(--text-muted);
 }
+
+/* ---------- Generator: inline chronological progress ---------- */
+
+.sf-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.sf-progress-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: var(--radius-md);
+  background: var(--surface-alt);
+  font-size: 0.9rem;
+  animation: sf-step-in 0.25s ease;
+}
+@keyframes sf-step-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.sf-progress-icon {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  margin-top: 0.05rem;
+}
+.sf-progress-step.pending .sf-progress-icon { background: var(--accent-soft); }
+.sf-progress-step.done .sf-progress-icon { background: #e4f3e8; color: var(--ok); }
+.sf-progress-step.fail .sf-progress-icon { background: var(--danger-soft); color: var(--danger); }
+
+.sf-progress-spinner {
+  width: 11px;
+  height: 11px;
+  border: 2px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: sf-spin 0.7s linear infinite;
+}
+@keyframes sf-spin { to { transform: rotate(360deg); } }
+
+.sf-progress-body { min-width: 0; flex: 1; }
+.sf-progress-label { font-weight: 600; margin: 0; }
+.sf-progress-detail { margin: 0.25rem 0 0; color: var(--text-muted); font-size: 0.85rem; }
+.sf-progress-step .btn { margin-top: 0.6rem; }
 
 @media (max-width: 720px) {
   .topbar { padding: 1rem 1.25rem; flex-wrap: wrap; gap: 0.75rem; }

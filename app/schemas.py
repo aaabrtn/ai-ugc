@@ -113,6 +113,10 @@ class GenerationOut(BaseModel):
     generated_prompt: str
     sop_check_results: List[SopCheckOut]
 
+    duration: str
+    aspect_ratio: str
+    resolution: str
+
     kie_task_id: str
     video_status: VideoStatus
     video_error: str

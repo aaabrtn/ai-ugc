@@ -32,12 +32,11 @@ KIE_MODEL = os.environ.get("KIE_MODEL", "gemini-omni-video")
 # Public image hosting for KIE's input images uses KIE's own File Upload API
 # (see app/integrations/kie.py) — no separate credential, reuses KIE_API_KEY.
 
-# Cost tracking: KIE's task-status API doesn't return a per-task price, so
-# instead of guessing at an undocumented field, the app uses a flat rate you
-# provide here — accurate as long as every video is submitted with the same
-# settings the app always uses (10s, 9:16, 720p), which it is. Check your KIE
-# dashboard/pricing page for the credit cost of that combination, and how much
-# USD your credits actually cost (top-up amount / credits received) if you
-# want a $ figure too. Leave blank to just not show a video-generation cost.
-KIE_CREDITS_PER_VIDEO = os.environ.get("KIE_CREDITS_PER_VIDEO", "")
+# Cost tracking: KIE's task-status API doesn't return a per-task price, so the
+# app uses its own copy of KIE's published credit-cost table instead (see
+# CREDIT_TABLE in app/integrations/kie.py — credits vary by duration and
+# resolution, which the Generator form now lets you choose per video). This
+# is just the $-per-credit conversion rate, which is constant regardless of
+# those settings: how much USD your credits actually cost you (top-up amount
+# / credits received). Leave blank to show credits but not a $ figure.
 KIE_USD_PER_CREDIT = os.environ.get("KIE_USD_PER_CREDIT", "")

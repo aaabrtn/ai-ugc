@@ -9,7 +9,7 @@ import httpx
 from fastapi import APIRouter, Depends, Form, HTTPException
 from sqlalchemy.orm import Session
 
-from app.config import KIE_CREDITS_PER_VIDEO, KIE_MODEL, KIE_USD_PER_CREDIT, VISION_MODEL
+from app.config import KIE_MODEL, KIE_USD_PER_CREDIT, VISION_MODEL
 from app.database import DATA_DIR, get_db
 from app.generation.sop_check import has_blocking_failure, run_sop_checks
 from app.generation.template import assemble_prompt
@@ -24,6 +24,7 @@ from app.generation.vision import (
 from app.integrations.kie import (
     KieError,
     KieNotConfigured,
+    credits_for,
     get_task_detail,
     image_budget,
     parse_result_urls,
@@ -40,6 +41,10 @@ PRODUCT_UPLOADS_DIR = DATA_DIR / "uploads" / "products"
 VIDEO_UPLOADS_DIR = DATA_DIR / "uploads" / "generations"
 
 POLL_TIMEOUT = timedelta(minutes=15)  # matches KIE's own "stop polling after 10-15 minutes" guidance
+
+ALLOWED_DURATIONS = {"8", "10"}
+ALLOWED_ASPECT_RATIOS = {"16:9", "9:16"}
+ALLOWED_RESOLUTIONS = {"720p", "1080p", "4k"}
 
 
 def product_summary(product: Product) -> ProductSummaryOut:
@@ -85,6 +90,9 @@ def generation_to_out(g: Generation) -> GenerationOut:
         garment_analysis=garment_analysis,
         generated_prompt=g.generated_prompt or "",
         sop_check_results=sop_checks,
+        duration=g.duration,
+        aspect_ratio=g.aspect_ratio,
+        resolution=g.resolution,
         kie_task_id=g.kie_task_id or "",
         video_status=g.video_status,
         video_error=g.video_error or "",
@@ -103,6 +111,18 @@ def list_generations(db: Session = Depends(get_db)):
     return [generation_to_out(g) for g in generations]
 
 
+@router.get("/cost-estimate")
+def cost_estimate(duration: str, resolution: str):
+    """Live pre-generation estimate for the Generator form — declared before
+    the /{generation_id} route below so FastAPI doesn't try to match
+    "cost-estimate" as a generation id."""
+    credits = credits_for(duration, resolution)
+    if credits is None:
+        return {"credits": None, "usd": None}
+    usd = credits * float(KIE_USD_PER_CREDIT) if KIE_USD_PER_CREDIT else None
+    return {"credits": credits, "usd": usd}
+
+
 @router.get("/{generation_id}", response_model=GenerationOut)
 def get_generation(generation_id: str, db: Session = Depends(get_db)):
     g = db.get(Generation, generation_id)
@@ -115,6 +135,9 @@ def get_generation(generation_id: str, db: Session = Depends(get_db)):
 def create_generation(
     character_id: str = Form(...),
     product_id: str = Form(...),
+    duration: str = Form("10"),
+    aspect_ratio: str = Form("9:16"),
+    resolution: str = Form("720p"),
     db: Session = Depends(get_db),
 ):
     character = db.get(Character, character_id)
@@ -125,8 +148,21 @@ def create_generation(
         raise HTTPException(404, "Product not found")
     if product.fetch_status != FetchStatus.success or not product.images:
         raise HTTPException(400, "This product has no photos to generate a script from")
+    if duration not in ALLOWED_DURATIONS:
+        raise HTTPException(400, f"Duration must be one of {sorted(ALLOWED_DURATIONS)}")
+    if aspect_ratio not in ALLOWED_ASPECT_RATIOS:
+        raise HTTPException(400, f"Aspect ratio must be one of {sorted(ALLOWED_ASPECT_RATIOS)}")
+    if resolution not in ALLOWED_RESOLUTIONS:
+        raise HTTPException(400, f"Resolution must be one of {sorted(ALLOWED_RESOLUTIONS)}")
 
-    generation = Generation(character_id=character_id, product_id=product_id, stage=GenerationStage.draft)
+    generation = Generation(
+        character_id=character_id,
+        product_id=product_id,
+        stage=GenerationStage.draft,
+        duration=duration,
+        aspect_ratio=aspect_ratio,
+        resolution=resolution,
+    )
     db.add(generation)
     db.commit()
     db.refresh(generation)
@@ -300,8 +336,9 @@ def submit_video(generation_id: str, db: Session = Depends(get_db)):
             prompt=g.generated_prompt,
             character_ids=[character.kie_character_id],
             image_urls=image_urls,
-            duration="10",
-            aspect_ratio="9:16",
+            duration=g.duration,
+            aspect_ratio=g.aspect_ratio,
+            resolution=g.resolution,
         )
     except KieNotConfigured as e:
         raise HTTPException(422, str(e)) from e
@@ -314,11 +351,11 @@ def submit_video(generation_id: str, db: Session = Depends(get_db)):
     g.video_submitted_at = datetime.utcnow()
     g.video_error = ""
 
-    # Estimated, not live — see the KIE_CREDITS_PER_VIDEO comment in config.py.
-    # Accurate as long as every submission uses the same settings (it does: 10s,
-    # 9:16, 720p, one character).
-    if KIE_CREDITS_PER_VIDEO:
-        credits = float(KIE_CREDITS_PER_VIDEO)
+    # Estimated, not live — KIE's task-status API has no per-task price field.
+    # credits_for looks up the real published rate for the exact settings this
+    # generation actually used, not a flat guess.
+    credits = credits_for(g.duration, g.resolution)
+    if credits is not None:
         g.kie_credits_cost = credits
         g.kie_usd_cost = credits * float(KIE_USD_PER_CREDIT) if KIE_USD_PER_CREDIT else None
 
