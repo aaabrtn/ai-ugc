@@ -877,74 +877,61 @@ input[type="url"]:focus,
 .history-summary {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
 }
 
 .history-stat {
-  padding: 1.1rem 1.25rem;
-  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.65rem 0.9rem;
+  border-radius: var(--radius-md);
   border: 1px solid var(--border);
+  border-left-width: 3px;
   background: var(--surface);
-  box-shadow: var(--shadow-sm);
 }
 .history-stat p {
   margin: 0;
 }
 
 .history-stat-label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  margin-bottom: 0.4rem !important;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  flex: 0 0 auto;
 }
 
 .history-stat-value {
-  font-size: 1.65rem;
+  font-size: 1.15rem;
   font-weight: 700;
-  line-height: 1.1;
+  line-height: 1.2;
   letter-spacing: -0.01em;
 }
 
 .history-stat-sub {
-  font-size: 0.78rem;
+  font-size: 0.72rem;
   font-weight: 500;
-  margin-top: 0.3rem !important;
+  color: var(--text-muted);
+  margin-left: auto !important;
+  flex: 0 0 auto;
 }
 
-/* Total is the hero stat -- filled with the brand colour so it reads as the
-   headline figure at a glance, the two rolling windows sit as lighter,
-   secondary cards beside it. */
+/* Same light background throughout, kept minimal -- colour lives only in a
+   thin left border and the value text, not a solid fill, so Total still
+   reads as the headline figure without the tile row feeling heavy. */
 .history-stat-total {
-  background: linear-gradient(135deg, var(--accent), #e2794f);
-  border-color: transparent;
+  border-left-color: var(--accent);
 }
-.history-stat-total .history-stat-label { color: rgba(255, 255, 255, 0.85); }
-.history-stat-total .history-stat-value { color: #ffffff; }
-.history-stat-total .history-stat-sub { color: rgba(255, 255, 255, 0.85); }
+.history-stat-total .history-stat-value { color: var(--accent); }
 
-.history-stat-30,
-.history-stat-7 {
-  background: var(--surface-alt);
-}
-.history-stat-30 .history-stat-label,
-.history-stat-7 .history-stat-label {
-  color: var(--text-muted);
-}
-.history-stat-30 .history-stat-value,
-.history-stat-7 .history-stat-value {
-  color: var(--text);
-}
-.history-stat-30 .history-stat-sub,
-.history-stat-7 .history-stat-sub {
-  color: var(--text-muted);
-}
+.history-stat-30 { border-left-color: var(--border-strong); }
+.history-stat-30 .history-stat-value { color: var(--text); }
 
-/* A small colour cue distinguishing the two rolling windows from each other
-   without competing with the Total tile's solid fill. */
-.history-stat-30 { border-top: 3px solid var(--border-strong); }
-.history-stat-7 { border-top: 3px solid var(--ok); }
+.history-stat-7 { border-left-color: var(--ok); }
+.history-stat-7 .history-stat-value { color: var(--ok); }
 
 @media (max-width: 720px) {
   .history-summary { grid-template-columns: 1fr; }
