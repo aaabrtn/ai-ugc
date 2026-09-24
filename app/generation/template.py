@@ -57,6 +57,20 @@ GARMENT_PERMANENCE_LINE = (
     "including exactly where her hand touches or rests against it"
 )
 
+# Observed failure: a product that was full-length joggers rendered as shorts.
+# GARMENT_PERMANENCE_LINE only guarantees colour/opacity/coverage stay
+# constant -- it says nothing about the garment's actual length/silhouette
+# being correct in the first place. Stated once in [GARMENT] (not per cut,
+# since this is a single "get it right" attribute of the whole video, not a
+# per-cut contact-triggered drift like fading) alongside the AI-written
+# silhouette_note, which is the other half of this fix -- see SOP §9.
+GARMENT_SILHOUETTE_LINE = (
+    "the garment's exact length and silhouette above is precise and must be rendered exactly as "
+    "described — it is never rendered shorter, longer, cropped differently, or as a different style of "
+    "garment at any point in the video (full-length trousers never render as shorts, a maxi skirt never "
+    "renders as a mini, long sleeves never render as short)"
+)
+
 DEFAULT_MOVEMENT_NOTE = "Default SOP movement pace applies: roughly 1.2x natural speed, energetic but never frantic or glitchy."
 
 
@@ -120,6 +134,9 @@ def assemble_prompt(
     persona_block = " ".join(p for p in persona_parts if p)
 
     garment_block = garment.description.strip()
+    silhouette_line = garment.silhouette_note.strip()
+    if silhouette_line and not silhouette_line.endswith((".", "!", "?")):
+        silhouette_line += "."
 
     beats = cut_beats if cut_beats is not None else _default_cut_beats(garment)
     assert len(beats) == 5, "cut_beats must have exactly 5 entries, one per cut"
@@ -156,9 +173,13 @@ def assemble_prompt(
         "",
         "[GARMENT]",
         garment_block,
+        *([silhouette_line] if silhouette_line else []),
+        GARMENT_SILHOUETTE_LINE.capitalize() + ".",
         "The full outfit is visible head-to-toe throughout and is the primary visual subject of the "
         "video — never crop out the lower half of the garment. Her ankles and feet are never shown, at "
-        "any point — the frame always crops above the ankle.",
+        "any point — the frame always crops above the ankle; this is a camera-framing choice only and "
+        "never a reason to shorten the garment itself — the garment's true length (as described above) "
+        "extends exactly as far as stated, regardless of what the frame crops out.",
         "",
         "[ANATOMY & PHYSICS — applies to every cut]",
         "Exactly one hand holds the phone at all times; that grip is continuous and unbroken for the "

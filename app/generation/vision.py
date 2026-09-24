@@ -118,6 +118,7 @@ def _parse_json(raw: str) -> dict:
 @dataclass
 class GarmentAnalysis:
     description: str
+    silhouette_note: str
     back_detail: str
     loose_elements: str
     category_note: str
@@ -130,9 +131,20 @@ Describe construction details (buckles, rings, ties, ruffle tiers) as concrete p
 position, size and behaviour, not abstract jargon. If there is any loose or hanging fabric element (a \
 drape, tie, sash), note that it moves independently from the fitted parts of the garment.
 
+State the garment's exact length and silhouette explicitly and unambiguously — this is critical, never \
+leave it to be inferred. Name precisely where it ends on the body (e.g. "full-length trousers that reach \
+the ankle", "above-the-knee shorts", "knee-length skirt", "cropped top ending at the waist"). If the \
+garment could easily be confused with a shorter or longer sibling style, name that exact distinction \
+directly (joggers vs shorts, maxi dress vs mini dress, long sleeve vs short sleeve) — a vague description \
+here has previously caused full-length joggers to be rendered as shorts.
+
 Respond with ONLY a JSON object (no markdown fences, no other text), with these exact keys:
 {
   "description": "<full precise garment description, 2-4 sentences>",
+  "silhouette_note": "<one explicit sentence stating the garment's exact length and silhouette -- where \
+it ends on the body, naming the distinction directly if it could be confused with a shorter/longer \
+sibling style, e.g. 'Full-length joggers that reach all the way to the ankle, not shorts or cropped \
+pants.'>",
   "back_detail": "<what's visible from behind, if visible in the photos -- hardware, open back, ties; \
 empty string if not visible or not applicable>",
   "loose_elements": "<any free-moving element like a drape/tie/sash and how it moves; empty string if none>",
@@ -147,11 +159,12 @@ def analyze_garment(image_paths: list[Path], additional_context: str = "") -> tu
             "\n\nAdditional context supplied about this product (texture, thickness, or other detail not "
             f"obvious from the photos alone) — fold this in where relevant:\n{additional_context.strip()}"
         )
-    raw, usage = _call_vision(image_paths, instruction, max_tokens=700)
+    raw, usage = _call_vision(image_paths, instruction, max_tokens=800)
     data = _parse_json(raw)
     return (
         GarmentAnalysis(
             description=str(data.get("description", "")).strip(),
+            silhouette_note=str(data.get("silhouette_note", "")).strip(),
             back_detail=str(data.get("back_detail", "")).strip(),
             loose_elements=str(data.get("loose_elements", "")).strip(),
             category_note=str(data.get("category_note", "")).strip(),

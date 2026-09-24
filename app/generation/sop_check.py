@@ -13,7 +13,7 @@ what can be automated and leave the rest as a manual visual checklist.
 
 from dataclasses import dataclass
 
-from app.generation.template import FRAME_ONE_ANCHOR_LINE, FRAME_ONE_PHYSICS_LINE
+from app.generation.template import FRAME_ONE_ANCHOR_LINE, FRAME_ONE_PHYSICS_LINE, GARMENT_SILHOUETTE_LINE
 from app.generation.vision import GarmentAnalysis
 
 # Observed failure: a video opened with the phone floating, unheld, in the
@@ -172,6 +172,23 @@ def run_sop_checks(prompt_text: str, garment: GarmentAnalysis) -> list[SopCheck]
         len(garment.description) >= 40,
         "The garment description has real, specific detail.",
         "The garment description looks too short/generic — review it before approving.",
+    )
+
+    add(
+        "garment_silhouette_stated",
+        "Garment length/silhouette stated explicitly (not left to be inferred)",
+        bool(garment.silhouette_note.strip()),
+        "The garment's exact length/silhouette is explicitly stated.",
+        "No explicit length/silhouette statement found for this garment — review before approving. A "
+        "vague description here previously caused full-length joggers to render as shorts.",
+    )
+
+    add(
+        "garment_silhouette_locked",
+        "Prompt states the garment's silhouette must render exactly as described",
+        GARMENT_SILHOUETTE_LINE.lower() in prompt_text.lower(),
+        "The silhouette-lock instruction is present in the prompt.",
+        "Couldn't find the silhouette-lock instruction in the assembled prompt.",
     )
 
     add(

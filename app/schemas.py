@@ -89,6 +89,7 @@ class ProductSummaryOut(BaseModel):
 
 class GarmentAnalysisOut(BaseModel):
     description: str
+    silhouette_note: str = ""  # default so old generations (stored before this field existed) still load
     back_detail: str
     loose_elements: str
     category_note: str

@@ -90,6 +90,7 @@ This is the core philosophy underneath everything else: **realism comes from imp
 
 - Full outfit must be visible head-to-toe (or full garment length) — never crop out the lower half of the garment.
 - **Never show ankles or below** — no feet, shoes, or footwear at any point. Crop above the ankle, always.
+- **The ankle crop is a camera-framing choice only — never a reason to shorten the garment itself.** The garment's true length is whatever it actually is (see Section 9) regardless of what the frame happens to crop out. Never let "we don't show below the ankle" imply or excuse rendering a shorter garment than the real product.
 - Outfit is the primary visual subject of the video — not her face (which is covered anyway), not the room.
 
 ---
@@ -97,6 +98,8 @@ This is the core philosophy underneath everything else: **realism comes from imp
 ## 9. Garment Accuracy Rule
 
 - Garment description in every prompt must be **precise and product-accurate** — colour, material/texture, fit, hardware, trims, and any loose/free-moving elements (drapes, ties, ruffles) described concretely and specifically. Generic or approximate garment language causes visual drift from the actual product.
+- **Exact length and silhouette must always be stated explicitly, never left to be inferred.** Observed failure: a product that was full-length joggers rendered as shorts. Every garment analysis must name precisely where the garment ends on the body (full-length, ankle-length, knee-length, above-the-knee, cropped, etc.), and if the garment could be confused with a shorter or longer sibling style — joggers vs shorts, maxi dress vs mini dress, long sleeve vs short sleeve — that exact distinction must be named directly, not implied by the garment name alone.
+- **The garment's stated length/silhouette must be locked in as a hard rule, not just described once.** The prompt must explicitly instruct the model to render the garment's length and silhouette exactly as described — never shorter, longer, or as a different style — the same way Section 1 locks in grip continuity and garment-opacity permanence.
 - Describe construction details (buckles, rings, ties, ruffle tiers) as **concrete physical objects** with position, size, and behaviour — not as abstract garment-construction jargon. Jargon renders unreliably; physical, spatial description renders correctly.
 - Any loose/hanging fabric element (a drape, tie, sash) must be explicitly described as moving independently from the fitted parts of the garment, so the model knows what should move freely versus what stays fixed.
 - Full outfit head-to-toe visibility is mandatory in every prompt (see Section 8).
@@ -126,6 +129,7 @@ This is the core philosophy underneath everything else: **realism comes from imp
 - Standing right up against the mirror while initiating a turn — see Section 1, Rule 5.
 - **Hand-to-garment contact without explicit garment-permanence language** — observed to cause the touched fabric to fade, thin, or disappear at the point of contact (e.g. tapping her side). Always restate that the garment stays fully opaque and unchanged wherever it's touched — see Section 1, Rule 9.
 - **Any "walking toward/entering/approaching the mirror" language in the opening cut** — observed to cause the phone to render as floating, unheld, in the middle of the frame at the start of the video, with her then walking in and picking it up. Physically impossible for a continuous selfie POV and must never be written into Cut 1's beat — see Section 1, Rule 10.
+- **Garment description without an explicit stated length/silhouette** — observed to cause full-length joggers to render as shorts. Never rely on the garment name alone (a product name can say "joggers" while the description leaves length ambiguous) — always state exactly where the garment ends on the body, and lock that in as a hard rule the model must render exactly. See Section 9.
 
 ---
 
@@ -143,6 +147,7 @@ Before sending any prompt, confirm:
 - [ ] Zero audio, mouth never moves, no captions/text
 - [ ] Background identical across every cut
 - [ ] Garment described precisely, with real product detail
+- [ ] Garment's exact length/silhouette stated explicitly (not left to be inferred from the product name) and locked in as a hard rendering rule
 - [ ] Ankles/feet never shown
 - [ ] No non-cleared persona
 - [ ] No watermark/branding anywhere in prompt or expected output
