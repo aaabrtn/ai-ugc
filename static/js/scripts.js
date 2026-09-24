@@ -49,8 +49,6 @@ function showScriptDetail(script) {
   scriptDetailView.hidden = false;
   renderScriptDetail(script);
 }
-
-el("script-cancel-btn").addEventListener("click", showScriptForm);
 el("script-detail-back-btn").addEventListener("click", showScriptForm);
 
 // ---------- Create form ----------
@@ -64,7 +62,7 @@ function resetScriptForm() {
 }
 
 function selectedDuration() {
-  return scriptForm.querySelector('input[name="sf-duration"]:checked')?.value || "10";
+  return scriptForm.querySelector('input[name="sf-duration"]:checked')?.value || "8";
 }
 
 async function updateCostEstimate() {
@@ -80,7 +78,7 @@ async function updateCostEstimate() {
       return;
     }
     const usdText = data.usd !== null && data.usd !== undefined ? ` (~${formatCost(data.usd)})` : "";
-    sfCostEstimate.textContent = `Estimated cost: ~${data.credits} credits${usdText} — video generation only, AI prompt cost is a few tenths of a cent extra.`;
+    sfCostEstimate.textContent = `Estimated cost: ~${data.credits} credits${usdText}`;
   } catch {
     sfCostEstimate.textContent = "Estimated cost: couldn't load.";
   }
@@ -228,7 +226,6 @@ scriptCreateAndGenerateBtn.addEventListener("click", async () => {
 
   scriptCreateAndGenerateBtn.disabled = true;
   scriptSubmitBtn.disabled = true;
-  el("script-cancel-btn").disabled = true;
   sfProgress.innerHTML = "";
   sfProgress.hidden = false;
 
@@ -299,7 +296,6 @@ scriptCreateAndGenerateBtn.addEventListener("click", async () => {
   } finally {
     scriptCreateAndGenerateBtn.disabled = false;
     scriptSubmitBtn.disabled = false;
-    el("script-cancel-btn").disabled = false;
   }
 });
 
@@ -799,18 +795,57 @@ const historySummaryEl = el("history-summary");
 async function loadHistory() {
   const res = await fetch(GENERATIONS_API_BASE);
   const scripts = await res.json();
+  // Already newest-first from the API -- grouping sequentially below (rather
+  // than re-sorting) keeps both the day groups and the cards within each
+  // group newest-first, with no extra sort step needed.
   const finished = scripts.filter((s) => s.video_status === "success");
   historyListEl.innerHTML = "";
   historyEmptyState.hidden = finished.length > 0;
+
+  let currentKey = null;
+  let currentCardsEl = null;
   for (const script of finished) {
-    historyListEl.appendChild(renderHistoryCard(script));
+    const key = dateKey(script);
+    if (key !== currentKey) {
+      currentKey = key;
+      const group = document.createElement("div");
+      group.className = "history-date-group";
+      const heading = document.createElement("h3");
+      heading.className = "history-date-heading";
+      heading.textContent = formatDateHeading(script);
+      currentCardsEl = document.createElement("div");
+      currentCardsEl.className = "history-date-cards";
+      group.append(heading, currentCardsEl);
+      historyListEl.appendChild(group);
+    }
+    currentCardsEl.appendChild(renderHistoryCard(script));
   }
+
   renderHistorySummary(finished);
 }
 
 function scriptDate(script) {
   // Same naive-UTC handling as formatDate: server timestamps have no offset.
   return new Date(script.created_at.endsWith("Z") ? script.created_at : `${script.created_at}Z`);
+}
+
+function dateKey(script) {
+  const d = scriptDate(script);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
+function formatDateHeading(script) {
+  return scriptDate(script).toLocaleDateString(undefined, {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function formatTimeOnly(isoString) {
+  const d = new Date(isoString.endsWith("Z") ? isoString : `${isoString}Z`);
+  return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
 }
 
 function costSummaryLine(label, group) {
@@ -841,18 +876,6 @@ function renderHistorySummary(finished) {
   historySummaryEl.append(monthLine, totalLine);
 }
 
-function formatDateTime(isoString) {
-  // Same naive-UTC handling as formatDate: server timestamps have no offset.
-  const d = new Date(isoString.endsWith("Z") ? isoString : `${isoString}Z`);
-  return d.toLocaleString(undefined, {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-  });
-}
-
 function renderHistoryCard(script) {
   const card = document.createElement("div");
   card.className = "history-card";
@@ -862,16 +885,13 @@ function renderHistoryCard(script) {
   video.src = script.video_url;
   card.appendChild(video);
 
+  // Cards are grouped under a date heading (see loadHistory), so the card
+  // itself just needs the time — that's the unique, simple reference within
+  // a day, instead of the character/product name (which repeats across cards
+  // whenever the same outfit gets generated more than once).
   const title = document.createElement("h3");
-  title.textContent = `${script.character.name} × ${script.product.name}`;
+  title.textContent = formatTimeOnly(script.created_at);
   card.appendChild(title);
-
-  // Date *and* time, not just date — outfits repeated across characters/products
-  // otherwise produce identically-titled cards with no way to tell them apart.
-  const date = document.createElement("p");
-  date.className = "job-card-url";
-  date.textContent = formatDateTime(script.created_at);
-  card.appendChild(date);
 
   const costLine = buildTotalCostLine(script);
   if (costLine) card.appendChild(costLine);

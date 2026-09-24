@@ -135,9 +135,9 @@ def get_generation(generation_id: str, db: Session = Depends(get_db)):
 def create_generation(
     character_id: str = Form(...),
     product_id: str = Form(...),
-    duration: str = Form("10"),
+    duration: str = Form("8"),
     aspect_ratio: str = Form("9:16"),
-    resolution: str = Form("720p"),
+    resolution: str = Form("1080p"),
     db: Session = Depends(get_db),
 ):
     character = db.get(Character, character_id)
