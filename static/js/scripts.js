@@ -795,33 +795,65 @@ const historySummaryEl = el("history-summary");
 async function loadHistory() {
   const res = await fetch(GENERATIONS_API_BASE);
   const scripts = await res.json();
-  // Already newest-first from the API -- grouping sequentially below (rather
-  // than re-sorting) keeps both the day groups and the cards within each
-  // group newest-first, with no extra sort step needed.
+  // Already newest-first from the API.
   const finished = scripts.filter((s) => s.video_status === "success");
   historyListEl.innerHTML = "";
   historyEmptyState.hidden = finished.length > 0;
 
+  // Grouped up front (rather than streamed) so each day's heading can show
+  // that day's total cost, which requires knowing the whole group first.
+  for (const group of groupByDate(finished)) {
+    const groupEl = document.createElement("div");
+    groupEl.className = "history-date-group";
+
+    const heading = document.createElement("h3");
+    heading.className = "history-date-heading";
+    const headingLabel = document.createElement("span");
+    headingLabel.textContent = formatDateHeading(group.scripts[0]);
+    heading.appendChild(headingLabel);
+    const dayBadge = buildDayCostBadge(group.scripts);
+    if (dayBadge) heading.appendChild(dayBadge);
+
+    const cardsEl = document.createElement("div");
+    cardsEl.className = "history-date-cards";
+    for (const script of group.scripts) {
+      cardsEl.appendChild(renderHistoryCard(script));
+    }
+
+    groupEl.append(heading, cardsEl);
+    historyListEl.appendChild(groupEl);
+  }
+
+  renderHistorySummary(finished);
+}
+
+// Pre-groups the newest-first list into per-day buckets (still newest-first,
+// both across and within days), so each day's full cost total is known
+// before that day's heading is built.
+function groupByDate(finished) {
+  const groups = [];
   let currentKey = null;
-  let currentCardsEl = null;
+  let currentGroup = null;
   for (const script of finished) {
     const key = dateKey(script);
     if (key !== currentKey) {
       currentKey = key;
-      const group = document.createElement("div");
-      group.className = "history-date-group";
-      const heading = document.createElement("h3");
-      heading.className = "history-date-heading";
-      heading.textContent = formatDateHeading(script);
-      currentCardsEl = document.createElement("div");
-      currentCardsEl.className = "history-date-cards";
-      group.append(heading, currentCardsEl);
-      historyListEl.appendChild(group);
+      currentGroup = { key, scripts: [] };
+      groups.push(currentGroup);
     }
-    currentCardsEl.appendChild(renderHistoryCard(script));
+    currentGroup.scripts.push(script);
   }
+  return groups;
+}
 
-  renderHistorySummary(finished);
+function buildDayCostBadge(scripts) {
+  const known = scripts.filter((s) => s.total_cost_usd !== null && s.total_cost_usd !== undefined);
+  if (!known.length) return null;
+  const total = known.reduce((sum, s) => sum + s.total_cost_usd, 0);
+  const badge = document.createElement("span");
+  badge.className = "history-date-cost";
+  badge.textContent = `~${formatCost(total)}`;
+  return badge;
 }
 
 function scriptDate(script) {
@@ -856,24 +888,27 @@ function costSummaryLine(label, group) {
   return `${label}: ~${formatCost(total)} across ${group.length} video${group.length === 1 ? "" : "s"}${coverage}`;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 function renderHistorySummary(finished) {
   if (!finished.length) {
     historySummaryEl.hidden = true;
     return;
   }
   const now = new Date();
-  const thisMonth = finished.filter((s) => {
-    const d = scriptDate(s);
-    return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
-  });
+  const last7 = finished.filter((s) => now - scriptDate(s) <= 7 * DAY_MS);
+  const last30 = finished.filter((s) => now - scriptDate(s) <= 30 * DAY_MS);
 
   historySummaryEl.hidden = false;
   historySummaryEl.innerHTML = "";
-  const monthLine = document.createElement("p");
-  monthLine.textContent = costSummaryLine("This month", thisMonth);
   const totalLine = document.createElement("p");
-  totalLine.textContent = costSummaryLine("All time", finished);
-  historySummaryEl.append(monthLine, totalLine);
+  totalLine.className = "history-summary-total";
+  totalLine.textContent = costSummaryLine("Total", finished);
+  const last30Line = document.createElement("p");
+  last30Line.textContent = costSummaryLine("Last 30 days", last30);
+  const last7Line = document.createElement("p");
+  last7Line.textContent = costSummaryLine("Last 7 days", last7);
+  historySummaryEl.append(totalLine, last30Line, last7Line);
 }
 
 function renderHistoryCard(script) {
