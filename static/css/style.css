@@ -689,32 +689,61 @@ input[type="url"]:focus { outline: none; border-color: var(--accent); background
 
 .history-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
   gap: 1.1rem;
+  justify-items: center;
 }
 
 .history-card {
+  width: 100%;
+  max-width: 230px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
-  padding: 1rem;
+  padding: 0.85rem;
   display: flex;
   flex-direction: column;
-  gap: 0.6rem;
+  align-items: center;
+  text-align: center;
+  gap: 0.3rem;
 }
 
-.history-card .video-result-block { margin: 0; }
-
-.history-card-meta {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
+.history-card video {
+  display: block;
+  width: 110px;
+  max-height: 195px;
+  border-radius: var(--radius-sm);
+  background: #000;
+  margin-bottom: 0.15rem;
 }
-.history-card-meta h3 {
+
+.history-card h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 600;
+  line-height: 1.3;
+}
+
+.history-card .job-card-url {
+  margin: 0;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
+
+.history-card .video-result-cost {
+  margin: 0.1rem 0 0;
+}
+
+.history-card-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+.history-card-actions .btn {
+  white-space: nowrap;
+  padding-left: 0.65rem;
+  padding-right: 0.65rem;
 }
 
 .history-summary {

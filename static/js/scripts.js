@@ -362,11 +362,30 @@ function buildCostLine(script) {
   return p;
 }
 
-// Builds the compact result video (plus a cost line, when known) shown once a
-// video finishes, reused by both the script detail page and History cards.
-// Just the video itself, kept small — character/product are already
-// identified elsewhere (the script's own title/eyebrow, the History card's
-// caption), so repeating their thumbnails here would just be noise.
+function buildDownloadLink(script, className) {
+  const downloadLink = document.createElement("a");
+  downloadLink.className = className;
+  downloadLink.href = script.video_url;
+  downloadLink.download = `${script.character.name}-${script.product.name}`.replace(/[^\w.-]+/g, "-") + ".mp4";
+  downloadLink.textContent = "Download";
+  return downloadLink;
+}
+
+// Single-line total, no Anthropic/KIE split — used on History cards, where a
+// full breakdown is more detail than useful at a glance.
+function buildTotalCostLine(script) {
+  if (script.total_cost_usd === null || script.total_cost_usd === undefined) return null;
+  const p = document.createElement("p");
+  p.className = "video-result-cost";
+  p.textContent = `Total AI cost: ~${formatCost(script.total_cost_usd)}`;
+  return p;
+}
+
+// Builds the compact result video (plus a download link and cost breakdown)
+// shown on the script detail page once a video finishes. Just the video
+// itself, kept small — character/product are already identified elsewhere
+// (the script's own title/eyebrow), so repeating their thumbnails here would
+// just be noise.
 function buildVideoResultRow(script) {
   const block = document.createElement("div");
   block.className = "video-result-block";
@@ -376,12 +395,7 @@ function buildVideoResultRow(script) {
   const video = document.createElement("video");
   video.controls = true;
   video.src = script.video_url;
-  const downloadLink = document.createElement("a");
-  downloadLink.className = "btn btn-ghost btn-sm";
-  downloadLink.href = script.video_url;
-  downloadLink.download = `${script.character.name}-${script.product.name}`.replace(/[^\w.-]+/g, "-") + ".mp4";
-  downloadLink.textContent = "Download";
-  videoItem.append(video, downloadLink);
+  videoItem.append(video, buildDownloadLink(script, "btn btn-ghost btn-sm"));
   block.appendChild(videoItem);
 
   const costLine = buildCostLine(script);
@@ -614,20 +628,43 @@ function renderHistorySummary(finished) {
   historySummaryEl.append(monthLine, totalLine);
 }
 
+function formatDateTime(isoString) {
+  // Same naive-UTC handling as formatDate: server timestamps have no offset.
+  const d = new Date(isoString.endsWith("Z") ? isoString : `${isoString}Z`);
+  return d.toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function renderHistoryCard(script) {
   const card = document.createElement("div");
   card.className = "history-card";
-  card.appendChild(buildVideoResultRow(script));
 
-  const meta = document.createElement("div");
-  meta.className = "history-card-meta";
+  const video = document.createElement("video");
+  video.controls = true;
+  video.src = script.video_url;
+  card.appendChild(video);
 
   const title = document.createElement("h3");
   title.textContent = `${script.character.name} × ${script.product.name}`;
+  card.appendChild(title);
 
+  // Date *and* time, not just date — outfits repeated across characters/products
+  // otherwise produce identically-titled cards with no way to tell them apart.
   const date = document.createElement("p");
   date.className = "job-card-url";
-  date.textContent = formatDate(script.created_at);
+  date.textContent = formatDateTime(script.created_at);
+  card.appendChild(date);
+
+  const costLine = buildTotalCostLine(script);
+  if (costLine) card.appendChild(costLine);
+
+  const actions = document.createElement("div");
+  actions.className = "history-card-actions";
 
   const viewBtn = document.createElement("button");
   viewBtn.type = "button";
@@ -638,8 +675,9 @@ function renderHistoryCard(script) {
     showScriptDetail(script);
   });
 
-  meta.append(title, date, viewBtn);
-  card.appendChild(meta);
+  actions.append(viewBtn, buildDownloadLink(script, "btn btn-primary btn-sm"));
+  card.appendChild(actions);
+
   return card;
 }
 

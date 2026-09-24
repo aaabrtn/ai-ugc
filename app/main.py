@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -22,6 +22,19 @@ app.include_router(generations.router, prefix="/api/generations", tags=["generat
 
 app.mount("/uploads", StaticFiles(directory=UPLOADS_DIR), name="uploads")
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.middleware("http")
+async def no_cache_static(request: Request, call_next):
+    """This is a locally-run single-user dev tool that gets edited and pulled
+    often — a stale cached copy of index.html/scripts.js/style.css silently
+    showing old behavior after a `git pull` has been a recurring source of
+    confusion. Since it's localhost, not a real client-facing site behind a
+    CDN, the perf cost of never caching is irrelevant; always forcing a fresh
+    fetch removes the whole "did I actually pull the latest?" question."""
+    response = await call_next(request)
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    return response
 
 
 @app.get("/")
