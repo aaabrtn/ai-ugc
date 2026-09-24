@@ -181,3 +181,80 @@ only -- no preamble, no markdown, no JSON."""
 
 def analyze_setting(image_paths: list[Path]) -> tuple[str, VisionUsage]:
     return _call_vision(image_paths, SETTING_INSTRUCTION, max_tokens=300)
+
+
+MOVEMENT_VARIATION_INSTRUCTION = """You are writing choreography variations for a fixed video template \
+used in AI UGC fashion content. The video always has this exact 5-cut structure and timing, which must \
+NOT change -- only the specific action within each cut varies between versions:
+
+Cut 1 (0-2s): Opening hook -- an energetic transition into frame at the mirror.
+Cut 2 (2-4s): A three-quarter turn to one side (never more than three-quarter, never a full back turn), \
+showing the garment's fit over the hip and silhouette.
+Cut 3 (4-6s): A three-quarter turn to the opposite side (never more than three-quarter, never a full back \
+turn), revealing back_detail="{back_detail}" if applicable, otherwise the garment's silhouette from this side.
+Cut 4 (6-8s): Front-facing, a natural gesture where her free hand touches loose_element="{loose_elements}" \
+if applicable, otherwise the fabric's texture -- an unconscious gesture, not a deliberate close-up (no \
+zoom, no macro shot).
+Cut 5 (8-10s): Front-facing, an ending movement, settling and holding on a bright final beat.
+
+Write {count} DIFFERENT versions of this choreography. Each version must:
+- Follow the exact 5-beat structure and timing above -- same number of cuts, same emotional arc, same \
+narrative purpose per cut.
+- Never exceed a three-quarter turn in either turn cut (cuts 2 and 3), never a full back-turn.
+- Feel genuinely different in specific action from every other version -- vary the exact entrance \
+action, turn style, gesture, energy, and ending pose.
+- Stay entirely natural, candid, unscripted-feeling selfie-mirror content -- no props, no camera tricks, \
+no zoom or macro shots, no choreographed dance moves.
+- Be concrete, specific physical actions (not vague or abstract), 1-2 sentences per cut, each ending in a \
+full stop.
+
+Respond with ONLY a JSON object (no markdown fences, no other text), with this exact shape:
+{{"variations": [{{"cut1": "...", "cut2": "...", "cut3": "...", "cut4": "...", "cut5": "..."}}, ...]}}
+with exactly {count} entries in the "variations" array."""
+
+
+def generate_movement_variations(count: int, garment: GarmentAnalysis) -> tuple[list[list[str]], VisionUsage]:
+    """Writes `count` distinct 5-beat choreography variations for the SOP's
+    fixed 5-cut structure/timing -- so a batch of videos for the same
+    character/product move differently from each other, while every other SOP
+    rule (three-quarter turn cap, grip/garment-permanence lines, anatomy,
+    authenticity, etc.) stays byte-identical across the batch, since those are
+    assembled separately in template.py and never touched here. Text-only
+    call, no reference photos needed."""
+    if not ANTHROPIC_API_KEY:
+        raise VisionNotConfigured(
+            "No AI vision provider is configured. Set ANTHROPIC_API_KEY in your environment "
+            "(see .env.example) to enable batch generation."
+        )
+    instruction = MOVEMENT_VARIATION_INSTRUCTION.format(
+        count=count,
+        back_detail=garment.back_detail or "not visible/applicable",
+        loose_elements=garment.loose_elements or "none",
+    )
+    client = _client()
+    try:
+        message = client.messages.create(
+            model=VISION_MODEL,
+            max_tokens=400 * count + 400,
+            messages=[{"role": "user", "content": instruction}],
+        )
+    except anthropic.APIError as e:
+        raise VisionError(f"The AI request for movement variations failed: {e}") from e
+
+    text = "".join(block.text for block in message.content if block.type == "text").strip()
+    if not text:
+        raise VisionError("The AI request for movement variations returned an empty response.")
+    usage = VisionUsage(message.usage.input_tokens, message.usage.output_tokens, VISION_MODEL)
+
+    data = _parse_json(text)
+    variations = []
+    for entry in data.get("variations") or []:
+        beats = [str(entry.get(f"cut{i}", "")).strip() for i in range(1, 6)]
+        if all(beats):
+            variations.append(beats)
+
+    if len(variations) < count:
+        raise VisionError(
+            f"Expected {count} usable movement variations from the AI response, got {len(variations)}."
+        )
+    return variations[:count], usage

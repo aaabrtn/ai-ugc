@@ -168,6 +168,17 @@ class Generation(Base):
     aspect_ratio = Column(String, default="9:16", nullable=False)
     resolution = Column(String, default="720p", nullable=False)
 
+    # Groups generations created together by "Generate Batch" -- same character
+    # and product, distinct movement choreography per video (see
+    # generate_movement_variations) -- so History can show them together. NULL
+    # for every generation created singly; never set after creation.
+    batch_id = Column(String, nullable=True)
+    # 1-indexed position within that batch. Batch siblings are created in the
+    # same request and can share a created_at down to the second, which would
+    # otherwise collide in the DD-MM-YY-HH-MM generation ID shown in History --
+    # this disambiguates them (e.g. "...-14-05-2"). NULL outside a batch.
+    batch_index = Column(Integer, nullable=True)
+
     # Video generation (Phase 3)
     kie_task_id = Column(String, default="")
     kie_model_used = Column(String, default="")

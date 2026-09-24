@@ -33,6 +33,9 @@ DEFAULT_MOVEMENT_NOTE = "Default SOP movement pace applies: roughly 1.2x natural
 
 
 def _cut(number: int, time_range: str, beat: str) -> str:
+    beat = beat.strip()
+    if beat and not beat.endswith((".", "!", "?")):
+        beat += "."  # normalizes AI-written variation beats to the same shape as the hardcoded defaults
     return f"Cut {number} ({time_range}) — {beat} {GRIP_LINE.capitalize()}. {GARMENT_PERMANENCE_LINE.capitalize()}."
 
 
@@ -48,6 +51,23 @@ def _back_detail_beat(garment: GarmentAnalysis) -> str:
     return "showing the garment's silhouette from this side"
 
 
+def _default_cut_beats(garment: GarmentAnalysis) -> list[str]:
+    """The SOP's original, locked choreography -- used whenever no variation
+    (see generate_movement_variations) is supplied, so single-video generation
+    behaves exactly as it always has."""
+    return [
+        "The video starts already mid-motion, as if caught mid-action — she walks quickly toward the "
+        "mirror, then catches herself and steps back slightly, settling into a hip roll.",
+        "She stands a natural arm's-length-plus from the mirror before turning — a three-quarter turn to "
+        "one side, never more, showing the garment's fit over the hip and silhouette.",
+        f"A three-quarter turn to the opposite side, never rotating fully away, {_back_detail_beat(garment)}.",
+        f"Front-facing, a shimmy/bounce — her free hand naturally {_fabric_touch_detail(garment)} as she "
+        "moves, an unconscious gesture rather than a deliberate close-up (no zoom, no macro shot).",
+        "Front-facing, a spin-in-place snap within the three-quarter limit, settling and holding on a "
+        "bright final beat.",
+    ]
+
+
 def assemble_prompt(
     *,
     persona_description: str,
@@ -55,7 +75,14 @@ def assemble_prompt(
     setting_description: str,
     garment: GarmentAnalysis,
     movement_notes: str,
+    cut_beats: list[str] | None = None,
 ) -> str:
+    """`cut_beats`, if given, must have exactly 5 entries -- one specific action
+    per cut, replacing the SOP's default choreography (see
+    generate_movement_variations for how a batch produces distinct sets of
+    these) while every other rule assembled below -- timing, turn limits,
+    grip/garment-permanence lines, anatomy, authenticity -- stays identical
+    regardless of which beats are used."""
     movement_line = movement_notes.strip() or DEFAULT_MOVEMENT_NOTE
 
     persona_parts = [persona_description.strip()]
@@ -65,37 +92,15 @@ def assemble_prompt(
 
     garment_block = garment.description.strip()
 
+    beats = cut_beats if cut_beats is not None else _default_cut_beats(garment)
+    assert len(beats) == 5, "cut_beats must have exactly 5 entries, one per cut"
+
     cuts = [
-        _cut(
-            1,
-            "0-2s",
-            "Opening hook: the video starts already mid-motion, as if caught mid-action — she walks "
-            "quickly toward the mirror, then catches herself and steps back slightly, settling into a "
-            "hip roll.",
-        ),
-        _cut(
-            2,
-            "2-4s",
-            "She stands a natural arm's-length-plus from the mirror before turning — a three-quarter "
-            "turn to one side, never more, showing the garment's fit over the hip and silhouette.",
-        ),
-        _cut(
-            3,
-            "4-6s",
-            f"A three-quarter turn to the opposite side, never rotating fully away, {_back_detail_beat(garment)}.",
-        ),
-        _cut(
-            4,
-            "6-8s",
-            f"Front-facing, a shimmy/bounce — her free hand naturally {_fabric_touch_detail(garment)} as "
-            "she moves, an unconscious gesture rather than a deliberate close-up (no zoom, no macro shot).",
-        ),
-        _cut(
-            5,
-            "8-10s",
-            "Front-facing, a spin-in-place snap within the three-quarter limit, settling and holding on "
-            "a bright final beat.",
-        ),
+        _cut(1, "0-2s", beats[0]),
+        _cut(2, "2-4s", beats[1]),
+        _cut(3, "4-6s", beats[2]),
+        _cut(4, "6-8s", beats[3]),
+        _cut(5, "8-10s", beats[4]),
     ]
 
     lines = [

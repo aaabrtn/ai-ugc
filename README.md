@@ -125,7 +125,17 @@ The Generator homepage lets you pick **duration** (8s/10s), **aspect ratio** (9:
 
 Two ways to actually generate:
 - **Generate Video** (the Generator homepage) — does everything below in one click, inline on that same page (no navigation, no prompt shown): writes the script and prompt, approves it as-is, submits to KIE, and shows live stage-by-stage progress ending in a **Completed** state with a link into History.
-- **Create Script** — pairs the character and product without generating anything yet, so you can review/edit the prompt on its own detail page before manually clicking **Generate Video** there.
+- **Create Prompt** — pairs the character and product without generating anything yet, so you can review/edit the prompt on its own detail page before manually clicking **Generate Video** there.
+
+### Bulk generation
+
+Setting **Number of videos** above 1 (up to 5 per click) switches **Generate Video** into **Generate N Videos** and hides **Create Prompt** (bulk always skips manual review, same one-click philosophy as a single video). One click then:
+
+1. **Writes N distinct prompts in one request** (`POST /api/generations/batch`) — persona/setting/garment analysis runs at most once and is shared across all N (same caching as a single script), plus one extra AI call (`generate_movement_variations` in `generation/vision.py`) that writes N different 5-beat choreographies for the SOP's fixed 5-cut structure. Every other SOP rule — timing, the three-quarter-turn cap, the repeated grip/garment-permanence lines, anatomy, authenticity — is assembled identically across all N by `template.py`; only the specific action within each cut differs between videos.
+2. **Submits all N to KIE back-to-back**, not one at a time, so they actually generate simultaneously rather than queued sequentially — each is then tracked independently through the same background-poller-backed completion flow as a single video, with its own progress row.
+3. **Shares one `batch_id`** across the N generations it creates, so History groups them together and shows "Batch 2 of 5"-style labels; since batch siblings can share the same creation minute, their generation IDs get a `-2`/`-3`/etc. suffix appended to stay unique.
+
+Cost scales linearly with count — KIE bills each video independently, no bulk discount — and the live estimate reflects that (`?count=N` on the cost-estimate endpoint).
 
 Either way, submitting a video:
 

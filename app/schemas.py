@@ -116,6 +116,8 @@ class GenerationOut(BaseModel):
     duration: str
     aspect_ratio: str
     resolution: str
+    batch_id: str = ""  # shared across every generation created together by "Generate Batch"; "" if none
+    batch_index: Optional[int] = None  # 1-indexed position within that batch; None outside a batch
 
     kie_task_id: str
     video_status: VideoStatus

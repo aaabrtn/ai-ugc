@@ -14,6 +14,7 @@ const scriptSubmitBtn = el("script-submit-btn");
 const scriptCreateAndGenerateBtn = el("script-create-and-generate-btn");
 const sfAspectRatioSelect = el("sf-aspect-ratio");
 const sfResolutionSelect = el("sf-resolution");
+const sfBatchCountSelect = el("sf-batch-count");
 const sfCostEstimate = el("sf-cost-estimate");
 const sfProgress = el("sf-progress");
 
@@ -59,18 +60,35 @@ function resetScriptForm() {
   sfProgress.hidden = true;
   sfProgress.innerHTML = "";
   updateCostEstimate();
+  updateBatchModeUI();
 }
 
 function selectedDuration() {
   return scriptForm.querySelector('input[name="sf-duration"]:checked')?.value || "8";
 }
 
+function selectedBatchCount() {
+  return parseInt(sfBatchCountSelect.value, 10) || 1;
+}
+
+// Above 1 video, "Create Prompt" (which reviews a single draft before
+// manually generating) doesn't apply -- a batch always writes its N distinct
+// prompts and generates immediately, same one-click philosophy as a single
+// Generate Video. So that path is hidden, and the remaining button's label
+// makes the video count explicit.
+function updateBatchModeUI() {
+  const count = selectedBatchCount();
+  scriptSubmitBtn.hidden = count > 1;
+  scriptCreateAndGenerateBtn.textContent = count > 1 ? `Generate ${count} Videos` : "Generate Video";
+}
+
 async function updateCostEstimate() {
   const duration = selectedDuration();
   const resolution = sfResolutionSelect.value;
+  const count = selectedBatchCount();
   try {
     const res = await fetch(
-      `${GENERATIONS_API_BASE}/cost-estimate?duration=${encodeURIComponent(duration)}&resolution=${encodeURIComponent(resolution)}`,
+      `${GENERATIONS_API_BASE}/cost-estimate?duration=${encodeURIComponent(duration)}&resolution=${encodeURIComponent(resolution)}&count=${count}`,
     );
     const data = await res.json();
     if (data.credits === null || data.credits === undefined) {
@@ -78,7 +96,8 @@ async function updateCostEstimate() {
       return;
     }
     const usdText = data.usd !== null && data.usd !== undefined ? ` (~${formatCost(data.usd)})` : "";
-    sfCostEstimate.textContent = `Estimated cost: ~${data.credits} credits${usdText}`;
+    const perVideoText = count > 1 ? ` — ${data.per_video_credits} credits each` : "";
+    sfCostEstimate.textContent = `Estimated cost: ~${data.credits} credits${usdText}${perVideoText}`;
   } catch {
     sfCostEstimate.textContent = "Estimated cost: couldn't load.";
   }
@@ -88,6 +107,10 @@ scriptForm.querySelectorAll('input[name="sf-duration"]').forEach((input) => {
   input.addEventListener("change", updateCostEstimate);
 });
 sfResolutionSelect.addEventListener("change", updateCostEstimate);
+sfBatchCountSelect.addEventListener("change", () => {
+  updateCostEstimate();
+  updateBatchModeUI();
+});
 
 async function loadScriptFormOptions() {
   const [charactersRes, productsRes] = await Promise.all([
@@ -139,6 +162,12 @@ function buildCreateGenerationFormData(characterId, productId) {
   fd.append("duration", selectedDuration());
   fd.append("aspect_ratio", sfAspectRatioSelect.value);
   fd.append("resolution", sfResolutionSelect.value);
+  return fd;
+}
+
+function buildBatchFormData(characterId, productId, count) {
+  const fd = buildCreateGenerationFormData(characterId, productId);
+  fd.append("count", String(count));
   return fd;
 }
 
@@ -229,6 +258,20 @@ scriptCreateAndGenerateBtn.addEventListener("click", async () => {
   sfProgress.innerHTML = "";
   sfProgress.hidden = false;
 
+  try {
+    const count = selectedBatchCount();
+    if (count > 1) {
+      await runBatchGeneration(characterId, productId, count);
+    } else {
+      await runSingleGeneration(characterId, productId);
+    }
+  } finally {
+    scriptCreateAndGenerateBtn.disabled = false;
+    scriptSubmitBtn.disabled = false;
+  }
+});
+
+async function runSingleGeneration(characterId, productId) {
   const scriptStep = addProgressStep("Writing the script and prompt…");
 
   try {
@@ -266,38 +309,99 @@ scriptCreateAndGenerateBtn.addEventListener("click", async () => {
     script = await res.json();
     markStepDone(scriptStep);
 
-    const submitStep = addProgressStep("Submitting to KIE…");
-    res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/submit-video`, { method: "POST" });
-    if (!res.ok) {
-      markStepFailed(submitStep, await extractScriptError(res));
-      return;
-    }
-    script = await res.json();
-    markStepDone(submitStep);
-
-    const genStep = addProgressStep("Generating your video — this can take a few minutes…");
-    const finalScript = await awaitVideoCompletion(script.id);
-
-    if (finalScript.video_status === "success") {
-      markStepDone(genStep, "Video generated.");
-      const doneStep = addProgressStep("Completed");
-      const viewBtn = document.createElement("button");
-      viewBtn.type = "button";
-      viewBtn.className = "btn btn-primary btn-sm";
-      viewBtn.textContent = "View in History";
-      viewBtn.addEventListener("click", () => switchTab("history"));
-      doneStep.body.appendChild(viewBtn);
-      markStepDone(doneStep);
-    } else {
-      markStepFailed(genStep, finalScript.video_error || "Generation failed.");
-    }
+    const finalScript = await submitAndTrackVideo(script);
+    if (finalScript) addCompletedStep("Completed");
   } catch (e) {
     markStepFailed(scriptStep, e.message || "Something went wrong.");
-  } finally {
-    scriptCreateAndGenerateBtn.disabled = false;
-    scriptSubmitBtn.disabled = false;
   }
-});
+}
+
+// Submits an already-approved script to KIE and tracks it through to a
+// terminal state, updating one progress step throughout. Shared by the
+// single-video flow (one step) and the batch flow (one step per video, all
+// submitted back-to-back so they generate on KIE at the same time -- see
+// runBatchGeneration). Returns the finished script, or null on failure.
+async function submitAndTrackVideo(script, stepLabel) {
+  const submitStep = addProgressStep(stepLabel ? `${stepLabel}: submitting to KIE…` : "Submitting to KIE…");
+  try {
+    let res = await fetch(`${GENERATIONS_API_BASE}/${script.id}/submit-video`, { method: "POST" });
+    if (!res.ok) {
+      markStepFailed(submitStep, await extractScriptError(res));
+      return null;
+    }
+    const submitted = await res.json();
+
+    submitStep.labelEl.textContent = stepLabel
+      ? `${stepLabel}: generating — this can take a few minutes…`
+      : "Generating your video — this can take a few minutes…";
+    const finalScript = await awaitVideoCompletion(submitted.id);
+
+    if (finalScript.video_status === "success") {
+      markStepDone(submitStep, stepLabel ? `${stepLabel}: done.` : "Video generated.");
+      return finalScript;
+    }
+    markStepFailed(submitStep, finalScript.video_error || "Generation failed.");
+    return null;
+  } catch (e) {
+    markStepFailed(submitStep, e.message || "Something went wrong.");
+    return null;
+  }
+}
+
+function addCompletedStep(label) {
+  const doneStep = addProgressStep(label);
+  const viewBtn = document.createElement("button");
+  viewBtn.type = "button";
+  viewBtn.className = "btn btn-primary btn-sm";
+  viewBtn.textContent = "View in History";
+  viewBtn.addEventListener("click", () => switchTab("history"));
+  doneStep.body.appendChild(viewBtn);
+  markStepDone(doneStep);
+}
+
+// Writes `count` distinct prompts (same character/product/settings, unique
+// movement per video, identical SOP rules -- see the batch endpoint) in one
+// call, then submits all `count` videos to KIE back-to-back without waiting
+// for each to finish before starting the next, so they generate
+// simultaneously rather than one at a time.
+async function runBatchGeneration(characterId, productId, count) {
+  const batchStep = addProgressStep(`Writing ${count} distinct scripts and prompts…`);
+
+  let scripts;
+  try {
+    const res = await fetch(`${GENERATIONS_API_BASE}/batch`, {
+      method: "POST",
+      body: buildBatchFormData(characterId, productId, count),
+    });
+    if (!res.ok) {
+      markStepFailed(batchStep, await extractScriptError(res));
+      return;
+    }
+    scripts = await res.json();
+  } catch (e) {
+    markStepFailed(batchStep, e.message || "Something went wrong.");
+    return;
+  }
+
+  const blocked = scripts.filter((s) => s.stage === "blocked");
+  const approved = scripts.filter((s) => s.stage === "approved");
+  markStepDone(
+    batchStep,
+    blocked.length
+      ? `${approved.length} of ${count} prompts ready (${blocked.length} blocked by an SOP check).`
+      : `${count} distinct prompts ready.`,
+  );
+
+  // Fired together (not one at a time) so all approved videos actually
+  // generate on KIE at the same time -- each is tracked by its own progress
+  // step via the existing background-poller-backed awaitVideoCompletion.
+  const results = await Promise.all(
+    approved.map((script, i) => submitAndTrackVideo(script, `Video ${i + 1} of ${approved.length}`)),
+  );
+
+  const successCount = results.filter((r) => r && r.video_status === "success").length;
+  addCompletedStep(`Completed: ${successCount} of ${count} videos generated.`);
+}
 
 async function extractScriptError(res) {
   try {
@@ -807,6 +911,7 @@ async function loadHistory() {
   // Already newest-first from the API.
   const finished = scripts.filter((s) => s.video_status === "success");
   const inProgress = scripts.filter((s) => IN_PROGRESS_VIDEO_STATUSES.includes(s.video_status));
+  const batchSizes = buildBatchSizes(scripts);
   historyListEl.innerHTML = "";
   historyEmptyState.hidden = finished.length > 0 || inProgress.length > 0;
 
@@ -828,7 +933,7 @@ async function loadHistory() {
     const cardsEl = document.createElement("div");
     cardsEl.className = "history-date-cards";
     for (const script of inProgress) {
-      cardsEl.appendChild(renderInProgressCard(script));
+      cardsEl.appendChild(renderInProgressCard(script, batchSizes));
       historyPollUnsubscribes.push(onPollUpdate(script.id, () => loadHistory()));
       schedulePoll(script.id);
     }
@@ -853,7 +958,7 @@ async function loadHistory() {
     const cardsEl = document.createElement("div");
     cardsEl.className = "history-date-cards";
     for (const script of group.scripts) {
-      cardsEl.appendChild(renderHistoryCard(script));
+      cardsEl.appendChild(renderHistoryCard(script, batchSizes));
     }
 
     groupEl.append(heading, cardsEl);
@@ -861,6 +966,27 @@ async function loadHistory() {
   }
 
   renderHistorySummary(finished);
+}
+
+// Counts how many generations share each batch_id, across every status (not
+// just finished) -- so a card can show "2 of 5" even while some siblings are
+// still in progress or one failed.
+function buildBatchSizes(scripts) {
+  const sizes = new Map();
+  for (const s of scripts) {
+    if (!s.batch_id) continue;
+    sizes.set(s.batch_id, (sizes.get(s.batch_id) || 0) + 1);
+  }
+  return sizes;
+}
+
+function buildBatchBadge(script, batchSizes) {
+  if (!script.batch_id || !script.batch_index) return null;
+  const badge = document.createElement("p");
+  badge.className = "history-card-sub";
+  const size = batchSizes.get(script.batch_id) || script.batch_index;
+  badge.textContent = `Batch ${script.batch_index} of ${size}`;
+  return badge;
 }
 
 // Pre-groups the newest-first list into per-day buckets (still newest-first,
@@ -913,16 +1039,19 @@ function formatDateHeading(script) {
 
 // Doubles as this generation's ID on History cards: DD-MM-YY-HH-MM of when
 // it was created, unique enough at a glance (down to the minute) without
-// needing a separate generated name or UUID fragment.
-function formatGenerationId(isoString) {
-  const d = new Date(isoString.endsWith("Z") ? isoString : `${isoString}Z`);
+// needing a separate generated name or UUID fragment. Batch siblings are
+// created together and can share that same minute, so a batch entry gets its
+// 1-indexed position appended (e.g. "...-14-05-2") to keep it unique too.
+function formatGenerationId(script) {
+  const d = new Date(script.created_at.endsWith("Z") ? script.created_at : `${script.created_at}Z`);
   const pad = (n) => String(n).padStart(2, "0");
   const day = pad(d.getDate());
   const month = pad(d.getMonth() + 1);
   const year = pad(d.getFullYear() % 100);
   const hour = pad(d.getHours());
   const minute = pad(d.getMinutes());
-  return `${day}-${month}-${year}-${hour}-${minute}`;
+  const suffix = script.batch_id && script.batch_index ? `-${script.batch_index}` : "";
+  return `${day}-${month}-${year}-${hour}-${minute}${suffix}`;
 }
 
 function costSummaryLine(label, group) {
@@ -956,7 +1085,7 @@ function renderHistorySummary(finished) {
   historySummaryEl.append(totalLine, last30Line, last7Line);
 }
 
-function renderHistoryCard(script) {
+function renderHistoryCard(script, batchSizes) {
   const card = document.createElement("div");
   card.className = "history-card";
 
@@ -970,8 +1099,11 @@ function renderHistoryCard(script) {
   // cards whenever the same outfit gets generated more than once).
   const title = document.createElement("h3");
   title.className = "history-card-id";
-  title.textContent = formatGenerationId(script.created_at);
+  title.textContent = formatGenerationId(script);
   card.appendChild(title);
+
+  const batchBadge = buildBatchBadge(script, batchSizes);
+  if (batchBadge) card.appendChild(batchBadge);
 
   const costLine = buildTotalCostLine(script);
   if (costLine) card.appendChild(costLine);
@@ -999,7 +1131,7 @@ function formatVideoStatusLabel(status) {
   return "Queued on KIE…"; // waiting / queuing
 }
 
-function renderInProgressCard(script) {
+function renderInProgressCard(script, batchSizes) {
   const card = document.createElement("div");
   card.className = "history-card history-card-pending";
 
@@ -1012,8 +1144,11 @@ function renderInProgressCard(script) {
 
   const title = document.createElement("h3");
   title.className = "history-card-id";
-  title.textContent = formatGenerationId(script.created_at);
+  title.textContent = formatGenerationId(script);
   card.appendChild(title);
+
+  const batchBadge = buildBatchBadge(script, batchSizes);
+  if (batchBadge) card.appendChild(batchBadge);
 
   const sub = document.createElement("p");
   sub.className = "history-card-sub";

@@ -468,7 +468,7 @@ textarea:focus {
 .sf-picker-grid .field-card:last-child { grid-column: auto; }
 
 .sf-settings-grid {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
 }
 .sf-settings-grid .field-card:last-child { grid-column: auto; }
 

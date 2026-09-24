@@ -81,6 +81,11 @@ def init_db():
             "duration": "VARCHAR DEFAULT '10'",
             "aspect_ratio": "VARCHAR DEFAULT '9:16'",
             "resolution": "VARCHAR DEFAULT '720p'",
+            # No default -- every row that predates this column was created
+            # singly, genuinely outside of any batch, so NULL is correct for
+            # all of them, not a placeholder.
+            "batch_id": "VARCHAR",
+            "batch_index": "INTEGER",
         },
     )
 
