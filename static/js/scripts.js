@@ -34,7 +34,6 @@ const VIDEO_STATUS_LABELS = {
 // ---------- View switching ----------
 
 function showScriptForm() {
-  stopPolling();
   scriptDetailView.hidden = true;
   scriptFormView.hidden = false;
   resetScriptForm();
@@ -276,18 +275,75 @@ function renderPromptSection(script) {
   }
 }
 
-let pollTimer = null;
-let pollAttempt = 0;
+// Tracks background status-polling per generation (scriptId -> setTimeout id),
+// independent of which view is currently open. A video submitted to KIE keeps
+// generating on KIE's servers regardless of what the browser is showing, so
+// polling must not stop just because the user switched tabs or navigated back
+// to the Generator's blank form -- otherwise the app loses track of it, the
+// database is never updated to "success", and it silently never appears in
+// History even though the video may have actually finished.
+const activePolls = new Map();
 
-function stopPolling() {
-  if (pollTimer) clearTimeout(pollTimer);
-  pollTimer = null;
-  pollAttempt = 0;
+function stopPolling(scriptId) {
+  const timer = activePolls.get(scriptId);
+  if (timer) clearTimeout(timer);
+  activePolls.delete(scriptId);
+}
+
+function schedulePoll(scriptId, attempt = 0) {
+  if (activePolls.has(scriptId)) return; // already being tracked
+  activePolls.set(scriptId, null); // reserve the slot before the first tick
+  pollTick(scriptId, attempt);
+}
+
+function pollTick(scriptId, attempt) {
+  const delay = Math.min(3000 * Math.pow(1.4, attempt), 15000);
+  const timer = setTimeout(async () => {
+    try {
+      const res = await fetch(`${GENERATIONS_API_BASE}/${scriptId}/video-status`);
+      if (!res.ok) {
+        pollTick(scriptId, attempt + 1);
+        return;
+      }
+      const script = await res.json();
+      if (script.video_status === "success" || script.video_status === "fail") {
+        activePolls.delete(scriptId);
+      } else {
+        pollTick(scriptId, attempt + 1);
+      }
+      // Only touch the DOM if this generation's detail page happens to be open.
+      if (currentScript && currentScript.id === script.id) {
+        currentScript = script;
+        renderVideoSection(script);
+      }
+    } catch {
+      pollTick(scriptId, attempt + 1);
+    }
+  }, delay);
+  activePolls.set(scriptId, timer);
+}
+
+async function resumeInProgressPolls() {
+  // Runs once on load: picks back up any generation left mid-flight from a
+  // previous visit (e.g. the tab was switched or the page was reloaded while
+  // a video was still generating), instead of leaving it stuck and untracked.
+  const IN_PROGRESS = ["waiting", "queuing", "generating"];
+  try {
+    const res = await fetch(GENERATIONS_API_BASE);
+    if (!res.ok) return;
+    const scripts = await res.json();
+    for (const script of scripts) {
+      if (IN_PROGRESS.includes(script.video_status)) {
+        schedulePoll(script.id);
+      }
+    }
+  } catch {
+    // best-effort -- reopening that script's detail page also resumes polling
+  }
 }
 
 function renderVideoSection(script) {
   const section = el("script-detail-video-section");
-  stopPolling();
 
   if (script.stage !== "approved") {
     section.hidden = true;
@@ -402,28 +458,6 @@ function buildVideoResultRow(script) {
   if (costLine) block.appendChild(costLine);
 
   return block;
-}
-
-function schedulePoll(scriptId) {
-  const delay = Math.min(3000 * Math.pow(1.4, pollAttempt), 15000);
-  pollAttempt += 1;
-  pollTimer = setTimeout(async () => {
-    try {
-      const res = await fetch(`${GENERATIONS_API_BASE}/${scriptId}/video-status`);
-      if (!res.ok) {
-        // transient poll failure -- keep retrying rather than treating it as final
-        schedulePoll(scriptId);
-        return;
-      }
-      const script = await res.json();
-      if (currentScript && currentScript.id === script.id) {
-        currentScript = script;
-        renderVideoSection(script);
-      }
-    } catch {
-      schedulePoll(scriptId);
-    }
-  }, delay);
 }
 
 el("script-submit-video-btn").addEventListener("click", async () => {
@@ -573,6 +607,7 @@ el("script-delete-btn").addEventListener("click", async () => {
   if (!confirm("Delete this script? This cannot be undone.")) return;
   const res = await fetch(`${GENERATIONS_API_BASE}/${currentScript.id}`, { method: "DELETE" });
   if (res.ok) {
+    stopPolling(currentScript.id);
     showScriptForm();
   } else {
     alert("Failed to delete script.");
@@ -686,3 +721,6 @@ function renderHistoryCard(script) {
 // The Generator is the app's home view, so show the form immediately rather
 // than waiting for a tab click. Past generations live in History instead.
 showScriptForm();
+
+// Pick back up any generation still mid-flight from before this page load.
+resumeInProgressPolls();

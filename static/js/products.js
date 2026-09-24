@@ -56,7 +56,9 @@ function switchTab(tab) {
   } else if (tab === "history") {
     loadHistory();
   }
-  if (tab !== "scripts") stopPolling();
+  // Deliberately no stopPolling() here -- a video generating on KIE keeps
+  // going regardless of which tab is open, so background status-checking
+  // must too (see resumeInProgressPolls/schedulePoll in scripts.js).
 }
 
 document.querySelectorAll(".tab-btn").forEach((btn) => {
