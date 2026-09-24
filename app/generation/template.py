@@ -19,6 +19,34 @@ GRIP_LINE = (
     "entire time"
 )
 
+# Cut-1-only. Observed failure: a video opened with the phone floating, unheld,
+# in the middle of the frame, with her then walking in and picking it up --
+# physically impossible for a continuous selfie POV (the camera *is* the
+# phone in her hand; there is no "before" she's holding it). GRIP_LINE alone
+# (repeated every cut) wasn't enough to stop this, since it describes
+# continuity within a cut, not the state of the very first frame -- this line
+# closes that gap explicitly. See SOP §1 rule 10.
+FRAME_ONE_ANCHOR_LINE = (
+    "the very first frame already shows the phone fully raised and gripped in her hand, already "
+    "mid-selfie — there is no walking toward, entering, or approaching the mirror or camera at the "
+    "start of the video, and no reaching for, picking up, or grabbing the phone at any point; it is "
+    "never shown resting on a surface, propped up, or floating in frame, unheld, at the start or at "
+    "any other moment"
+)
+
+# Same rule as FRAME_ONE_ANCHOR_LINE, restated in the top-level ANATOMY & PHYSICS
+# block (applies regardless of which cut_beats are used) rather than repeated
+# once more per cut like GRIP_LINE/GARMENT_PERMANENCE_LINE -- this one only
+# concerns the video's opening state, not every cut. Kept as its own named
+# constant (not inlined) so sop_check.py can exclude this exact sentence when
+# scanning for forbidden entrance phrases -- otherwise the rule's own negation
+# ("never opens with her walking toward...") would trip its own check.
+FRAME_ONE_PHYSICS_LINE = (
+    "the video never opens with her walking toward, entering, or approaching the mirror or camera — "
+    "the phone is already fully raised and gripped in her hand from the very first frame, never shown "
+    "resting on a surface, propped up, or floating in frame, unheld, at the start or at any other point"
+)
+
 # Mirrors GRIP_LINE's fix for hand-detachment: repeated in every single cut (not
 # stated once) because a garment fade/disappear-on-contact glitch was observed
 # where the top-level [GARMENT] mention alone wasn't enough to hold through 5
@@ -36,7 +64,8 @@ def _cut(number: int, time_range: str, beat: str) -> str:
     beat = beat.strip()
     if beat and not beat.endswith((".", "!", "?")):
         beat += "."  # normalizes AI-written variation beats to the same shape as the hardcoded defaults
-    return f"Cut {number} ({time_range}) — {beat} {GRIP_LINE.capitalize()}. {GARMENT_PERMANENCE_LINE.capitalize()}."
+    frame_one = f" {FRAME_ONE_ANCHOR_LINE.capitalize()}." if number == 1 else ""
+    return f"Cut {number} ({time_range}) — {beat} {GRIP_LINE.capitalize()}. {GARMENT_PERMANENCE_LINE.capitalize()}.{frame_one}"
 
 
 def _fabric_touch_detail(garment: GarmentAnalysis) -> str:
@@ -56,8 +85,8 @@ def _default_cut_beats(garment: GarmentAnalysis) -> list[str]:
     (see generate_movement_variations) is supplied, so single-video generation
     behaves exactly as it always has."""
     return [
-        "The video starts already mid-motion, as if caught mid-action — she walks quickly toward the "
-        "mirror, then catches herself and steps back slightly, settling into a hip roll.",
+        "The video starts already mid-motion, as if caught mid-action — she's already right at the "
+        "mirror, phone already raised, catching herself mid-step and settling straight into a hip roll.",
         "She stands a natural arm's-length-plus from the mirror before turning — a three-quarter turn to "
         "one side, never more, showing the garment's fit over the hip and silhouette.",
         f"A three-quarter turn to the opposite side, never rotating fully away, {_back_detail_beat(garment)}.",
@@ -141,7 +170,7 @@ def assemble_prompt(
         "duplicated body parts. The garment itself is a solid, continuously-worn object for the entire "
         "video — it stays fully opaque and unchanged in coverage everywhere on her body, including "
         "exactly where her free hand touches or rests against it; it never fades, thins, dissolves, or "
-        "disappears at any point, in any cut.",
+        "disappears at any point, in any cut. " + FRAME_ONE_PHYSICS_LINE.capitalize() + ".",
         "",
         "[CUT-BY-CUT CHOREOGRAPHY — movement pace " + movement_line + "]",
         *cuts,

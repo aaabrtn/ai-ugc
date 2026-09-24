@@ -13,7 +13,35 @@ what can be automated and leave the rest as a manual visual checklist.
 
 from dataclasses import dataclass
 
+from app.generation.template import FRAME_ONE_ANCHOR_LINE, FRAME_ONE_PHYSICS_LINE
 from app.generation.vision import GarmentAnalysis
+
+# Observed failure: a video opened with the phone floating, unheld, in the
+# middle of the frame, with her then walking in and picking it up --
+# physically impossible for a continuous selfie POV. These phrases are the
+# ones that were found to trigger it (see SOP §1 rule 10) -- if any of them
+# ever appears in an assembled prompt (including an AI-written batch
+# variation, which isn't fixed template text and so isn't automatically safe
+# the way the hardcoded default is), that's a real regression worth catching
+# before the prompt is ever approved.
+FORBIDDEN_ENTRANCE_PHRASES = (
+    "walks toward",
+    "walking toward",
+    "walks to the mirror",
+    "approaches the mirror",
+    "approaches the camera",
+    "enters the frame",
+    "enters frame",
+    "picks up the phone",
+    "picking up the phone",
+    "reaches for the phone",
+    "reaching for the phone",
+    "grabs the phone",
+    "grabbing the phone",
+    "phone is propped",
+    "phone rests on",
+    "phone sitting on",
+)
 
 
 @dataclass
@@ -67,6 +95,35 @@ def run_sop_checks(prompt_text: str, garment: GarmentAnalysis) -> list[SopCheck]
         "already mid-motion" in prompt_text,
         "Cut 1 explicitly starts mid-motion.",
         "Cut 1 doesn't explicitly start mid-motion.",
+    )
+
+    add(
+        "frame_one_anchor",
+        "Video opens already mid-selfie — phone already raised, no walk-in",
+        "already shows the phone fully raised and gripped in her hand" in prompt_text,
+        "Cut 1 explicitly states the phone is already raised and gripped from the very first frame.",
+        "Couldn't find the frame-one anchor instruction — Cut 1 may not guarantee the phone is already "
+        "in hand from frame one.",
+    )
+
+    # The rule's own negation ("never opens with her walking toward...") would
+    # otherwise trip this same check, since it necessarily names the concept
+    # it's forbidding (see SOP §1 rule 6 on writing physics in positive terms
+    # -- this is the one place a negation is unavoidable, so instead of
+    # rephrasing it into something more awkward, the check excludes exactly
+    # those two known-safe sentences before scanning for actual violations.
+    scan_text = prompt_text.lower()
+    for safe_line in (FRAME_ONE_ANCHOR_LINE, FRAME_ONE_PHYSICS_LINE):
+        scan_text = scan_text.replace(safe_line.lower(), "")
+
+    add(
+        "no_walk_in_or_pickup",
+        "No walk-in, approach, or phone pick-up language anywhere in the prompt",
+        not any(phrase in scan_text for phrase in FORBIDDEN_ENTRANCE_PHRASES),
+        "No walk-in/approach/pick-up-the-phone language found.",
+        "Found language suggesting she walks toward/enters the frame or picks up the phone — this can "
+        "render as the phone floating in frame, unheld, before she grabs it, which is impossible for a "
+        "continuous selfie POV. Review Cut 1 before approving.",
     )
 
     add(

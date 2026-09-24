@@ -187,7 +187,10 @@ MOVEMENT_VARIATION_INSTRUCTION = """You are writing choreography variations for 
 used in AI UGC fashion content. The video always has this exact 5-cut structure and timing, which must \
 NOT change -- only the specific action within each cut varies between versions:
 
-Cut 1 (0-2s): Opening hook -- an energetic transition into frame at the mirror.
+Cut 1 (0-2s): Opening hook -- she is already at the mirror, phone already raised and gripped in her \
+hand, caught mid-action (e.g. catching herself mid-step, settling from a quick body movement) as if the \
+video just started rolling. NEVER a walk-in, entrance, or approach toward the mirror/camera -- the phone \
+is already in her hand, already raised, from the very first frame, full stop.
 Cut 2 (2-4s): A three-quarter turn to one side (never more than three-quarter, never a full back turn), \
 showing the garment's fit over the hip and silhouette.
 Cut 3 (4-6s): A three-quarter turn to the opposite side (never more than three-quarter, never a full back \
@@ -200,9 +203,14 @@ Cut 5 (8-10s): Front-facing, an ending movement, settling and holding on a brigh
 Write {count} DIFFERENT versions of this choreography. Each version must:
 - Follow the exact 5-beat structure and timing above -- same number of cuts, same emotional arc, same \
 narrative purpose per cut.
+- Cut 1 never shows her walking toward, entering, or approaching the mirror/camera, or reaching for, \
+picking up, or grabbing the phone -- every version opens already mid-selfie, phone already raised and \
+gripped in her hand from the first frame. This is a hard rule, not a style choice: a walk-in or approach \
+at the start renders as the phone floating in frame, unheld, before she grabs it -- physically \
+impossible for a continuous selfie POV, and must never appear.
 - Never exceed a three-quarter turn in either turn cut (cuts 2 and 3), never a full back-turn.
-- Feel genuinely different in specific action from every other version -- vary the exact entrance \
-action, turn style, gesture, energy, and ending pose.
+- Feel genuinely different in specific action from every other version -- vary the exact opening \
+movement (within the frame, not into it), turn style, gesture, energy, and ending pose.
 - Stay entirely natural, candid, unscripted-feeling selfie-mirror content -- no props, no camera tricks, \
 no zoom or macro shots, no choreographed dance moves.
 - Be concrete, specific physical actions (not vague or abstract), 1-2 sentences per cut, each ending in a \

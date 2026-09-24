@@ -18,6 +18,7 @@ These exist specifically to prevent hand detachment, duplicate phones, and other
 7. **Anti-detachment language repeats every cut, not once.** The grip/attachment rule must be restated in each individual cut's description, not just once at the top of the prompt. A single top-level mention is not enough to hold through 5 hard cuts of fast movement.
 8. **No watermarks, no AI-tool branding.** Every prompt explicitly prohibits watermarks, logos, or visible generation-tool branding in the output.
 9. **The garment never fades or disappears on contact.** Observed failure: as she touches/taps the fabric (Section 4), part of the outfit faded off and disappeared at the point of contact. The garment is a solid, continuously-worn object for the entire video — it stays fully opaque and unchanged in colour, texture, and coverage everywhere on her body, including exactly where her hand touches or rests against it. Like Rule 7, this must be restated in **every individual cut**, not just once at the top — a single top-level mention is not enough to hold through 5 cuts of contact and movement.
+10. **The phone is already in her hand from the very first frame — no exceptions.** Observed failure: a video opened with the phone floating, unheld, in the middle of the frame; she then walked in and picked it up. This is physically impossible for a continuous selfie POV (the camera *is* the phone in her hand — there is no "before" she's holding it) and must never be written or rendered. The very first frame already shows her mid-selfie, phone fully raised and gripped. There is no walking toward, entering, or approaching the mirror/camera at the start of the video, and no reaching for, picking up, or grabbing the phone at any point — it is never shown resting on a surface, propped up, or floating in frame, unheld, at the start or at any other moment. This applies to the opening cut specifically, since that's the only point where an "empty frame she walks into" framing could ever be implied.
 
 ---
 
@@ -27,7 +28,7 @@ This is the default pacing skeleton. Hard jump-cuts every 2 seconds, 5 total, no
 
 | Cut | Time | Beat |
 |---|---|---|
-| 1 | 0–2s | **Opening hook** — video starts already mid-motion, as if caught mid-action. She walks quickly toward the mirror, then catches herself and steps back slightly, settling into a hip roll. Never opens static. |
+| 1 | 0–2s | **Opening hook** — video starts already mid-motion, as if caught mid-action, phone already raised and gripped in her hand. She's already at the mirror, catching herself mid-step and settling into a hip roll. Never opens static, and never opens with her walking toward, entering, or approaching the mirror/camera (see Section 1, Rule 10). |
 | 2 | 2–4s | Three-quarter turn, one side — shows the garment's fit over the hip/silhouette. |
 | 3 | 4–6s | Three-quarter turn, opposite side — shows the other side / back detail (open back, hardware, etc.) without ever rotating fully away. |
 | 4 | 6–8s | Front-facing — shimmy/bounce, free hand touches/feels the fabric naturally. |
@@ -124,6 +125,7 @@ This is the core philosophy underneath everything else: **realism comes from imp
 - Full back-turn in selfie POV — see Section 1, Rule 3.
 - Standing right up against the mirror while initiating a turn — see Section 1, Rule 5.
 - **Hand-to-garment contact without explicit garment-permanence language** — observed to cause the touched fabric to fade, thin, or disappear at the point of contact (e.g. tapping her side). Always restate that the garment stays fully opaque and unchanged wherever it's touched — see Section 1, Rule 9.
+- **Any "walking toward/entering/approaching the mirror" language in the opening cut** — observed to cause the phone to render as floating, unheld, in the middle of the frame at the start of the video, with her then walking in and picking it up. Physically impossible for a continuous selfie POV and must never be written into Cut 1's beat — see Section 1, Rule 10.
 
 ---
 
@@ -134,7 +136,7 @@ Before sending any prompt, confirm:
 - [ ] One phone, one gripping hand, restated per cut
 - [ ] Garment stays fully opaque, never fades/disappears on contact, restated per cut
 - [ ] No turn exceeds three-quarter rotation
-- [ ] Opening cut starts mid-motion, not static
+- [ ] Opening cut starts mid-motion, not static, and phone is already raised/gripped from frame one — no walking toward, entering, or approaching the mirror/camera
 - [ ] All 5 cuts are hard jumps, ~2s each, ~1.2x pace
 - [ ] Face covered by phone in every cut
 - [ ] Free hand touches fabric naturally at some point (no zoom)
