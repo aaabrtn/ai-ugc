@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.database import DATA_DIR, get_db
+from app.generation.garment_focus import GARMENT_TYPE_LABELS
 from app.models import FetchStatus, Product, ProductImage
 from app.schemas import ProductImageOut, ProductOut
 from app.scraping.download import ALLOWED_IMAGE_TYPES, download_image
@@ -15,6 +16,8 @@ from app.scraping.fetch import build_failure_message, fetch_product
 router = APIRouter()
 
 UPLOADS_DIR = DATA_DIR / "uploads" / "products"
+
+ALLOWED_GARMENT_TYPES = set(GARMENT_TYPE_LABELS) | {""}
 
 
 def product_to_out(product: Product) -> ProductOut:
@@ -35,6 +38,7 @@ def product_to_out(product: Product) -> ProductOut:
         fetch_error=product.fetch_error or "",
         description=product.description or "",
         additional_context=product.additional_context or "",
+        garment_type=product.garment_type or "",
         created_at=product.created_at,
         updated_at=product.updated_at,
         images=[img_out(i) for i in product.images],
@@ -75,6 +79,7 @@ def get_product(product_id: str, db: Session = Depends(get_db)):
 @router.post("", response_model=ProductOut)
 def create_product(
     source_url: str = Form(""),
+    garment_type: str = Form(""),
     manual_images: List[UploadFile] = File(default=[]),
     db: Session = Depends(get_db),
 ):
@@ -83,8 +88,15 @@ def create_product(
 
     if not source_url and not manual_files:
         raise HTTPException(400, "Provide a product URL or upload product images")
+    if garment_type not in ALLOWED_GARMENT_TYPES:
+        raise HTTPException(400, f"garment_type must be one of {sorted(ALLOWED_GARMENT_TYPES)}")
 
-    product = Product(name=source_url or "New product", source_url=source_url, fetch_status=FetchStatus.failed)
+    product = Product(
+        name=source_url or "New product",
+        source_url=source_url,
+        fetch_status=FetchStatus.failed,
+        garment_type=garment_type,
+    )
     db.add(product)
     db.flush()  # assign product.id
 
@@ -145,6 +157,7 @@ def update_product(
     product_id: str,
     name: str = Form(...),
     additional_context: str = Form(""),
+    garment_type: str = Form(""),
     db: Session = Depends(get_db),
 ):
     product = db.get(Product, product_id)
@@ -154,9 +167,12 @@ def update_product(
     name = name.strip()
     if not name:
         raise HTTPException(400, "Name is required")
+    if garment_type not in ALLOWED_GARMENT_TYPES:
+        raise HTTPException(400, f"garment_type must be one of {sorted(ALLOWED_GARMENT_TYPES)}")
 
     product.name = name
     product.additional_context = additional_context
+    product.garment_type = garment_type
     db.commit()
     db.refresh(product)
     return product_to_out(product)

@@ -103,6 +103,7 @@ This is the core philosophy underneath everything else: **realism comes from imp
 - Describe construction details (buckles, rings, ties, ruffle tiers) as **concrete physical objects** with position, size, and behaviour — not as abstract garment-construction jargon. Jargon renders unreliably; physical, spatial description renders correctly.
 - Any loose/hanging fabric element (a drape, tie, sash) must be explicitly described as moving independently from the fitted parts of the garment, so the model knows what should move freely versus what stays fixed.
 - Full outfit head-to-toe visibility is mandatory in every prompt (see Section 8).
+- **Optional promoted-garment focus.** A product can be classified by type — trousers, shorts, dress, top, or jacket (**not** shoes — see Section 8, the ankle/feet rule makes a shoes-focused video incompatible with this format entirely). When set, the prompt adds a `[FOCUS]` section naming that garment as what the video is promoting, and the turn (cut 2) and touch (cut 4) beats are written to specifically showcase that item — the free hand's gesture and the turns' framing draw attention to it — rather than the outfit generically. This is expressed **only** through her natural movement and gesture, never through camera zoom, macro shots, or cropping tighter than "full outfit visible" (Section 1 Rule 6, Section 4) — those stay hard-forbidden regardless of what's being promoted. Leaving the type unspecified (the default) produces identical behaviour to a product with no promoted focus at all.
 
 ---
 

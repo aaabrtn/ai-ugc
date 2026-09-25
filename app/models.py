@@ -114,6 +114,13 @@ class Product(Base):
     # Free-text, user-supplied: texture, thickness, anything not visible in the
     # photos themselves. Folded into the garment vision analysis as extra context.
     additional_context = Column(Text, default="")
+    # Which garment this product actually is (trousers/shorts/dress/top/jacket),
+    # set by Andrew, not AI-guessed. Drives the generation prompt's optional
+    # [FOCUS] section (app/generation/garment_focus.py) so a video's movement
+    # and gesture draw attention to this specific item when it's the one being
+    # promoted. "" (the default) means unspecified -- no focus behaviour at all,
+    # identical to how every product behaved before this feature existed.
+    garment_type = Column(String, default="", nullable=False)
 
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)

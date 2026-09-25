@@ -13,6 +13,7 @@ what can be automated and leave the rest as a manual visual checklist.
 
 from dataclasses import dataclass
 
+from app.generation.garment_focus import GARMENT_TYPE_LABELS
 from app.generation.template import FRAME_ONE_ANCHOR_LINE, FRAME_ONE_PHYSICS_LINE, GARMENT_SILHOUETTE_LINE
 from app.generation.vision import GarmentAnalysis
 
@@ -52,7 +53,7 @@ class SopCheck:
     detail: str
 
 
-def run_sop_checks(prompt_text: str, garment: GarmentAnalysis) -> list[SopCheck]:
+def run_sop_checks(prompt_text: str, garment: GarmentAnalysis, garment_type: str = "") -> list[SopCheck]:
     checks: list[SopCheck] = []
 
     def add(check_id: str, label: str, condition: bool, pass_detail: str, fail_detail: str):
@@ -190,6 +191,17 @@ def run_sop_checks(prompt_text: str, garment: GarmentAnalysis) -> list[SopCheck]
         "The silhouette-lock instruction is present in the prompt.",
         "Couldn't find the silhouette-lock instruction in the assembled prompt.",
     )
+
+    if garment_type in GARMENT_TYPE_LABELS:
+        label = GARMENT_TYPE_LABELS[garment_type]
+        add(
+            "focus_stated",
+            f"Promoted garment ({label}) is named as the video's visual focus",
+            "[FOCUS]" in prompt_text and label in prompt_text.split("[FOCUS]", 1)[1][:400],
+            f"The [FOCUS] section names the {label} as what this video is promoting.",
+            f"Expected a [FOCUS] section naming the {label} since this product's garment_type is set, but "
+            "didn't find one.",
+        )
 
     add(
         "ankles_hidden",

@@ -67,6 +67,7 @@ class ProductOut(BaseModel):
 
     description: str
     additional_context: str
+    garment_type: str = ""  # trousers/shorts/dress/top/jacket, or "" if unspecified
 
     created_at: datetime
     updated_at: datetime

@@ -154,6 +154,19 @@
                 <input type="file" id="pf-manual-images" accept="image/*" multiple hidden />
               </div>
             </section>
+
+            <section class="field-card">
+              <h3>Garment type <span class="hint-inline">(optional)</span></h3>
+              <p class="hint">If this product is what the video should draw attention to, pick its type — her movement and gesture will be shaped to showcase it specifically. Leave unspecified for generic outfit framing. Shoes aren't supported yet — the SOP never shows feet/ankles.</p>
+              <select id="pf-garment-type">
+                <option value="">Unspecified</option>
+                <option value="trousers">Trousers</option>
+                <option value="shorts">Shorts</option>
+                <option value="dress">Dress</option>
+                <option value="top">Top</option>
+                <option value="jacket">Jacket</option>
+              </select>
+            </section>
           </div>
 
           <div class="form-actions">
@@ -205,6 +218,19 @@
               <h3>Additional context <span class="hint-inline">(optional)</span></h3>
               <p class="hint">Texture, thickness, or anything else not obvious from the photos — folds into the AI garment description when generating a script.</p>
               <textarea id="pd-additional-context" rows="4" placeholder="e.g. the fabric is a heavier ribbed knit, the ties are wider than they look in photos..."></textarea>
+            </section>
+
+            <section class="field-card">
+              <h3>Garment type <span class="hint-inline">(optional)</span></h3>
+              <p class="hint">If this product is what the video should draw attention to, pick its type — her movement and gesture will be shaped to showcase it specifically. Leave unspecified for generic outfit framing. Shoes aren't supported yet — the SOP never shows feet/ankles.</p>
+              <select id="pd-garment-type">
+                <option value="">Unspecified</option>
+                <option value="trousers">Trousers</option>
+                <option value="shorts">Shorts</option>
+                <option value="dress">Dress</option>
+                <option value="top">Top</option>
+                <option value="jacket">Jacket</option>
+              </select>
             </section>
 
             <section class="field-card" id="pd-source-section">

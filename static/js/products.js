@@ -213,6 +213,7 @@ productForm.addEventListener("submit", async (e) => {
 
   const fd = new FormData();
   fd.append("source_url", sourceUrl);
+  fd.append("garment_type", el("pf-garment-type").value);
   for (const file of productManualImagesInput.files) fd.append("manual_images", file);
 
   productSubmitBtn.disabled = true;
@@ -288,6 +289,7 @@ function renderProductDetail(product) {
   }
 
   el("pd-additional-context").value = product.additional_context;
+  el("pd-garment-type").value = product.garment_type || "";
 
   const sourceSection = el("pd-source-section");
   if (product.source_url) {
@@ -392,6 +394,7 @@ productDetailForm.addEventListener("submit", async (e) => {
   const fd = new FormData();
   fd.append("name", name);
   fd.append("additional_context", el("pd-additional-context").value);
+  fd.append("garment_type", el("pd-garment-type").value);
 
   const res = await fetch(`${PRODUCTS_API_BASE}/${currentProduct.id}`, { method: "PUT", body: fd });
   if (!res.ok) {

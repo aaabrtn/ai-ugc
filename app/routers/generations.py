@@ -252,7 +252,7 @@ def create_batch(
         vision_input_tokens += usage.input_tokens
         vision_output_tokens += usage.output_tokens
 
-        variations, movement_usage = generate_movement_variations(count, garment)
+        variations, movement_usage = generate_movement_variations(count, garment, garment_type=product.garment_type)
     except VisionNotConfigured as e:
         raise HTTPException(422, str(e)) from e
     except VisionError as e:
@@ -270,8 +270,9 @@ def create_batch(
             garment=garment,
             movement_notes="",
             cut_beats=variations[i],
+            garment_type=product.garment_type,
         )
-        checks = run_sop_checks(prompt_text, garment)
+        checks = run_sop_checks(prompt_text, garment, garment_type=product.garment_type)
 
         g = Generation(
             character_id=character_id,
@@ -373,9 +374,10 @@ def generate_prompt(generation_id: str, db: Session = Depends(get_db)):
         setting_description=character.setting_description,
         garment=garment,
         movement_notes="",
+        garment_type=product.garment_type,
     )
 
-    checks = run_sop_checks(prompt_text, garment)
+    checks = run_sop_checks(prompt_text, garment, garment_type=product.garment_type)
     g.sop_check_results_json = json.dumps([dataclasses.asdict(c) for c in checks])
 
     if has_blocking_failure(checks):

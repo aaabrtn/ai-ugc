@@ -11,7 +11,44 @@ motion choreography live in separate pipeline nodes") — that also makes them
 trivially splittable once Phase 3 knows KIE's actual multi-field input shape.
 """
 
+from app.generation.garment_focus import GARMENT_TYPE_LABELS, GARMENT_TYPE_POSSESSIVES
 from app.generation.vision import GarmentAnalysis
+
+# Per-garment-type "focus" language -- used only when a product has an
+# explicit garment_type set (Andrew's own classification, not AI-guessed).
+# Draws attention to the promoted item through natural gesture and turn
+# framing only -- camera zoom/macro and cropping tighter than "full outfit
+# visible" stay hard-forbidden regardless of what's being promoted (SOP §4,
+# §8), so "focus" can only ever be expressed this way, not through framing.
+FOCUS_BEATS = {
+    "trousers": {
+        "turn": "showing the trousers' fit through the hip and leg",
+        "touch": "grazes along the outer seam of the trousers at her thigh",
+    },
+    "shorts": {
+        "turn": "showing the shorts' fit through the hip and leg",
+        "touch": "briefly adjusts the hem of the shorts at her thigh",
+    },
+    "dress": {
+        "turn": "showing the dress's silhouette and the movement of the skirt",
+        "touch": "smooths the fabric of the dress at her hip",
+    },
+    "top": {
+        "turn": "showing the top's fit through the shoulders and torso",
+        "touch": "adjusts the hem of the top at her waist",
+    },
+    "jacket": {
+        "turn": "showing the jacket's fit through the shoulders and silhouette",
+        "touch": "touches the zipper pull or collar of the jacket",
+    },
+}
+
+FOCUS_SECTION_TEMPLATE = (
+    "This video is promoting the {label} specifically. Her movement and the natural hand gesture in the "
+    "front-facing cut are chosen to draw attention to the {possessive} fit and detail — never through "
+    "zooming, cropping, or changing camera framing (the full outfit stays visible head-to-toe throughout, "
+    "exactly as stated above) — only through her natural body language and where her free hand goes."
+)
 
 GRIP_LINE = (
     "her phone-holding hand keeps a continuous, unbroken grip on the phone throughout this cut — it "
@@ -94,18 +131,23 @@ def _back_detail_beat(garment: GarmentAnalysis) -> str:
     return "showing the garment's silhouette from this side"
 
 
-def _default_cut_beats(garment: GarmentAnalysis) -> list[str]:
+def _default_cut_beats(garment: GarmentAnalysis, garment_type: str = "") -> list[str]:
     """The SOP's original, locked choreography -- used whenever no variation
     (see generate_movement_variations) is supplied, so single-video generation
-    behaves exactly as it always has."""
+    behaves exactly as it always has whenever no garment_type is set. When one
+    is set, the turn (cut 2) and touch (cut 4) beats specifically showcase that
+    garment instead of the generic "outfit" language -- see FOCUS_BEATS."""
+    focus = FOCUS_BEATS.get(garment_type)
+    turn_phrase = focus["turn"] if focus else "showing the garment's fit over the hip and silhouette"
+    touch_action = f"her free hand {focus['touch']}" if focus else f"her free hand naturally {_fabric_touch_detail(garment)}"
     return [
         "The video starts already mid-motion, as if caught mid-action — she's already right at the "
         "mirror, phone already raised, catching herself mid-step and settling straight into a hip roll.",
-        "She stands a natural arm's-length-plus from the mirror before turning — a three-quarter turn to "
-        "one side, never more, showing the garment's fit over the hip and silhouette.",
+        f"She stands a natural arm's-length-plus from the mirror before turning — a three-quarter turn to "
+        f"one side, never more, {turn_phrase}.",
         f"A three-quarter turn to the opposite side, never rotating fully away, {_back_detail_beat(garment)}.",
-        f"Front-facing, a shimmy/bounce — her free hand naturally {_fabric_touch_detail(garment)} as she "
-        "moves, an unconscious gesture rather than a deliberate close-up (no zoom, no macro shot).",
+        f"Front-facing, a shimmy/bounce — {touch_action} as she moves, an unconscious gesture rather than "
+        "a deliberate close-up (no zoom, no macro shot).",
         "Front-facing, a spin-in-place snap within the three-quarter limit, settling and holding on a "
         "bright final beat.",
     ]
@@ -119,13 +161,20 @@ def assemble_prompt(
     garment: GarmentAnalysis,
     movement_notes: str,
     cut_beats: list[str] | None = None,
+    garment_type: str = "",
 ) -> str:
     """`cut_beats`, if given, must have exactly 5 entries -- one specific action
     per cut, replacing the SOP's default choreography (see
     generate_movement_variations for how a batch produces distinct sets of
     these) while every other rule assembled below -- timing, turn limits,
     grip/garment-permanence lines, anatomy, authenticity -- stays identical
-    regardless of which beats are used."""
+    regardless of which beats are used.
+
+    `garment_type`, if it names one of FOCUS_BEATS, adds a [FOCUS] section and
+    (when `cut_beats` is None) shapes the default turn/touch beats to
+    specifically showcase that garment -- e.g. "trousers" for a product whose
+    trousers are what the video is actually promoting. Empty/unknown values
+    are always safe: identical output to before this feature existed."""
     movement_line = movement_notes.strip() or DEFAULT_MOVEMENT_NOTE
 
     persona_parts = [persona_description.strip()]
@@ -138,7 +187,16 @@ def assemble_prompt(
     if silhouette_line and not silhouette_line.endswith((".", "!", "?")):
         silhouette_line += "."
 
-    beats = cut_beats if cut_beats is not None else _default_cut_beats(garment)
+    focus_lines: list[str] = []
+    if garment_type in GARMENT_TYPE_LABELS:
+        label = GARMENT_TYPE_LABELS[garment_type]
+        focus_lines = [
+            "",
+            "[FOCUS]",
+            FOCUS_SECTION_TEMPLATE.format(label=label, possessive=GARMENT_TYPE_POSSESSIVES[garment_type]),
+        ]
+
+    beats = cut_beats if cut_beats is not None else _default_cut_beats(garment, garment_type)
     assert len(beats) == 5, "cut_beats must have exactly 5 entries, one per cut"
 
     cuts = [
@@ -180,6 +238,7 @@ def assemble_prompt(
         "any point — the frame always crops above the ankle; this is a camera-framing choice only and "
         "never a reason to shorten the garment itself — the garment's true length (as described above) "
         "extends exactly as far as stated, regardless of what the frame crops out.",
+        *focus_lines,
         "",
         "[ANATOMY & PHYSICS — applies to every cut]",
         "Exactly one hand holds the phone at all times; that grip is continuous and unbroken for the "

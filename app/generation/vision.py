@@ -10,6 +10,7 @@ from pathlib import Path
 import anthropic
 
 from app.config import ANTHROPIC_API_KEY, VISION_MODEL
+from app.generation.garment_focus import GARMENT_TYPE_LABELS, GARMENT_TYPE_POSSESSIVES
 
 MEDIA_TYPES = {
     ".jpg": "image/jpeg",
@@ -246,14 +247,29 @@ MOVEMENT_VARIATION_MAX_TOKENS_PER_ITEM = 1200
 MOVEMENT_VARIATION_MAX_TOKENS_BASE = 800
 
 
-def generate_movement_variations(count: int, garment: GarmentAnalysis) -> tuple[list[list[str]], VisionUsage]:
+FOCUS_INSTRUCTION_ADDENDUM = """
+
+IMPORTANT -- this video is specifically promoting the {label}. In every version, cuts 2 and 3 (the turns) \
+must be written to specifically showcase the {possessive} fit and silhouette (not the outfit generically), \
+and cut 4's natural hand gesture must specifically involve the {label} (e.g. touching its hem, waistband, \
+zipper, or fabric -- whatever is anatomically appropriate for the {label}) -- never a zoom or macro shot, \
+exactly as required above."""
+
+
+def generate_movement_variations(
+    count: int, garment: GarmentAnalysis, garment_type: str = ""
+) -> tuple[list[list[str]], VisionUsage]:
     """Writes `count` distinct 5-beat choreography variations for the SOP's
     fixed 5-cut structure/timing -- so a batch of videos for the same
     character/product move differently from each other, while every other SOP
     rule (three-quarter turn cap, grip/garment-permanence lines, anatomy,
     authenticity, etc.) stays byte-identical across the batch, since those are
     assembled separately in template.py and never touched here. Text-only
-    call, no reference photos needed."""
+    call, no reference photos needed.
+
+    `garment_type`, if it names one of GARMENT_TYPE_LABELS, steers every
+    variation's turns and touch gesture toward that specific garment -- same
+    "focus" feature as template.py's default (non-batch) choreography."""
     if not ANTHROPIC_API_KEY:
         raise VisionNotConfigured(
             "No AI vision provider is configured. Set ANTHROPIC_API_KEY in your environment "
@@ -264,6 +280,9 @@ def generate_movement_variations(count: int, garment: GarmentAnalysis) -> tuple[
         back_detail=garment.back_detail or "not visible/applicable",
         loose_elements=garment.loose_elements or "none",
     )
+    if garment_type in GARMENT_TYPE_LABELS:
+        label = GARMENT_TYPE_LABELS[garment_type]
+        instruction += FOCUS_INSTRUCTION_ADDENDUM.format(label=label, possessive=GARMENT_TYPE_POSSESSIVES[garment_type])
     client = _client()
     max_tokens = MOVEMENT_VARIATION_MAX_TOKENS_PER_ITEM * count + MOVEMENT_VARIATION_MAX_TOKENS_BASE
 

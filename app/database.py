@@ -89,6 +89,15 @@ def init_db():
         },
     )
 
+    _ensure_columns(
+        "products",
+        {
+            # "" (unspecified) is correct for every row predating this column --
+            # they were never classified, not defaulted to some guessed type.
+            "garment_type": "VARCHAR DEFAULT ''",
+        },
+    )
+
     _backfill_kie_costs()
 
 
