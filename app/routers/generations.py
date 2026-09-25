@@ -84,6 +84,14 @@ def generation_to_out(g: Generation) -> GenerationOut:
     if g.vision_cost_usd is not None or g.kie_usd_cost is not None:
         total_cost = (g.vision_cost_usd or 0) + (g.kie_usd_cost or 0)
 
+    # Real generation time: from the moment "Generate Video" actually submitted
+    # to KIE, to the moment it reached a terminal state -- not from when the
+    # script/prompt was created, which can include however long it sat in
+    # review first. None until both timestamps exist.
+    generation_seconds = None
+    if g.video_submitted_at and g.video_completed_at:
+        generation_seconds = (g.video_completed_at - g.video_submitted_at).total_seconds()
+
     return GenerationOut(
         id=g.id,
         character_id=g.character_id,
@@ -107,6 +115,7 @@ def generation_to_out(g: Generation) -> GenerationOut:
         kie_credits_cost=g.kie_credits_cost,
         kie_usd_cost=g.kie_usd_cost,
         total_cost_usd=total_cost,
+        generation_seconds=generation_seconds,
         created_at=g.created_at,
     )
 
@@ -519,6 +528,7 @@ def refresh_video_status(db: Session, g: Generation) -> Generation:
             f"No result from KIE after {int(POLL_TIMEOUT.total_seconds() // 60)} minutes. The task may "
             f"still be running — check kie.ai/logs for task {g.kie_task_id}."
         )
+        g.video_completed_at = datetime.utcnow()
         db.commit()
         db.refresh(g)
         return g
@@ -545,6 +555,9 @@ def refresh_video_status(db: Session, g: Generation) -> Generation:
     elif state in (VideoStatus.waiting.value, VideoStatus.queuing.value, VideoStatus.generating.value):
         g.video_status = VideoStatus(state)
     # any other/unknown state: leave as-is, just report current state back
+
+    if g.video_status in (VideoStatus.success, VideoStatus.fail) and not g.video_completed_at:
+        g.video_completed_at = datetime.utcnow()
 
     db.commit()
     db.refresh(g)

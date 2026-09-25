@@ -86,6 +86,10 @@ def init_db():
             # all of them, not a placeholder.
             "batch_id": "VARCHAR",
             "batch_index": "INTEGER",
+            # No default -- every row that predates this column either never
+            # finished or finished before generation time was tracked at all;
+            # NULL correctly means "unknown," not a placeholder duration.
+            "video_completed_at": "DATETIME",
         },
     )
 

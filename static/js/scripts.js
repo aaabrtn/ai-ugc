@@ -736,6 +736,23 @@ function buildTotalCostLine(script) {
   return p;
 }
 
+// "3m 42s" (or just "42s" under a minute) — the real KIE render time,
+// submission to completion, not however long the script sat in review first.
+function formatDuration(totalSeconds) {
+  const seconds = Math.round(totalSeconds);
+  const minutes = Math.floor(seconds / 60);
+  const remainder = seconds % 60;
+  return minutes > 0 ? `${minutes}m ${remainder}s` : `${remainder}s`;
+}
+
+function buildGenerationTimeLine(script) {
+  if (script.generation_seconds === null || script.generation_seconds === undefined) return null;
+  const p = document.createElement("p");
+  p.className = "history-card-sub";
+  p.textContent = `Generation time: ${formatDuration(script.generation_seconds)}`;
+  return p;
+}
+
 // Builds the compact result video (plus a download link and cost breakdown)
 // shown on the script detail page once a video finishes. Just the video
 // itself, kept small — character/product are already identified elsewhere
@@ -1147,6 +1164,9 @@ function renderHistoryCard(script, batchSizes) {
 
   const costLine = buildTotalCostLine(script);
   if (costLine) card.appendChild(costLine);
+
+  const timeLine = buildGenerationTimeLine(script);
+  if (timeLine) card.appendChild(timeLine);
 
   const actions = document.createElement("div");
   actions.className = "history-card-actions";

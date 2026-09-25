@@ -133,6 +133,10 @@ class GenerationOut(BaseModel):
     kie_usd_cost: Optional[float] = None
     total_cost_usd: Optional[float] = None  # sum of whichever of the above are known; None if neither is
 
+    # Real KIE render time: video_submitted_at to video_completed_at, in
+    # seconds. None until the generation reaches a terminal state.
+    generation_seconds: Optional[float] = None
+
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)

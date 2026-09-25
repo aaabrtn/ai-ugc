@@ -192,6 +192,12 @@ class Generation(Base):
     video_status = Column(Enum(VideoStatus), nullable=False, default=VideoStatus.not_started)
     video_error = Column(Text, default="")
     video_submitted_at = Column(DateTime, nullable=True)
+    # Set the moment video_status reaches a terminal state (success or fail) --
+    # video_submitted_at to video_completed_at is the actual generation time
+    # (KIE's real render duration), shown in History. Deliberately not the
+    # time since the script/prompt was created, which can include however
+    # long it sat in review before "Generate Video" was actually clicked.
+    video_completed_at = Column(DateTime, nullable=True)
     # KIE's result URL expires ~24h after generation, so the video is downloaded
     # locally as soon as success is detected — video_local_path is what actually
     # gets played back and, later, uploaded to Drive. video_result_url is kept only
