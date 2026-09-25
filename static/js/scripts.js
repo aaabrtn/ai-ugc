@@ -17,6 +17,31 @@ const sfResolutionSelect = el("sf-resolution");
 const sfBatchCountSelect = el("sf-batch-count");
 const sfCostEstimate = el("sf-cost-estimate");
 const sfProgress = el("sf-progress");
+const sfKieBalance = el("sf-kie-balance");
+
+// Flags the badge red once the balance drops below roughly two 8s videos'
+// worth of credits (the cheapest real combination is 105/video) -- just a
+// visual heads-up, not a hard limit enforced anywhere.
+const KIE_BALANCE_LOW_THRESHOLD = 200;
+
+async function updateKieBalance() {
+  try {
+    const res = await fetch(`${GENERATIONS_API_BASE}/kie-balance`);
+    const data = await res.json();
+    if (data.credits === null || data.credits === undefined) {
+      sfKieBalance.textContent = "KIE credits: unavailable";
+      sfKieBalance.className = "kie-balance-badge unavailable";
+      sfKieBalance.title = data.error || "";
+      return;
+    }
+    sfKieBalance.textContent = `KIE credits: ${data.credits.toLocaleString()}`;
+    sfKieBalance.className = `kie-balance-badge${data.credits < KIE_BALANCE_LOW_THRESHOLD ? " low" : ""}`;
+    sfKieBalance.title = "";
+  } catch {
+    sfKieBalance.textContent = "KIE credits: unavailable";
+    sfKieBalance.className = "kie-balance-badge unavailable";
+  }
+}
 
 const STAGE_LABELS = {
   draft: "Draft",
@@ -61,6 +86,7 @@ function resetScriptForm() {
   sfProgress.innerHTML = "";
   updateCostEstimate();
   updateBatchModeUI();
+  updateKieBalance();
 }
 
 function selectedDuration() {
@@ -330,6 +356,7 @@ async function submitAndTrackVideo(script, stepLabel) {
       return null;
     }
     const submitted = await res.json();
+    updateKieBalance(); // credits are spent at submission, not at completion
 
     submitStep.labelEl.textContent = stepLabel
       ? `${stepLabel}: generating — this can take a few minutes…`

@@ -123,6 +123,8 @@ If `ANTHROPIC_API_KEY` isn't set, Generate Prompt fails with a clear message tel
 
 The Generator homepage lets you pick **duration** (8s/10s), **aspect ratio** (9:16/16:9), and **quality** (720p/1080p/4K) alongside the character and product — these are stored on the script at creation and used by whichever flow eventually submits it. A live estimate (`GET /api/generations/cost-estimate`) shows the credit/USD cost for the current combination before you commit.
 
+A **KIE credits** badge at the top of the Generator (`GET /api/generations/kie-balance`, wrapping KIE's own `GET /api/v1/chat/credit`) shows your account's real, live remaining balance — not the app's own estimated spend. It refreshes whenever the form loads and right after each video is actually submitted to KIE (that's when credits are spent, not when the video finishes generating), and turns red once you're under ~200 credits (roughly two 8s videos' worth). If `KIE_API_KEY` isn't set, or KIE's API is unreachable, it shows "unavailable" rather than breaking the page.
+
 Two ways to actually generate:
 - **Generate Video** (the Generator homepage) — does everything below in one click, inline on that same page (no navigation, no prompt shown): writes the script and prompt, approves it as-is, submits to KIE, and shows live stage-by-stage progress ending in a **Completed** state with a link into History.
 - **Create Prompt** — pairs the character and product without generating anything yet, so you can review/edit the prompt on its own detail page before manually clicking **Generate Video** there.

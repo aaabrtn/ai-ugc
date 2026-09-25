@@ -210,6 +210,30 @@ def get_task_detail(task_id: str) -> dict:
     return data
 
 
+def get_credit_balance() -> int:
+    """Returns the account's current remaining KIE credit balance
+    (`GET /api/v1/chat/credit`). Unlike most KIE endpoints here, this one puts
+    its error signal in the response body's own `code` field, not just the
+    HTTP status -- checked explicitly rather than assumed to match."""
+    try:
+        resp = httpx.get(f"{KIE_BASE_URL}/api/v1/chat/credit", headers=_headers(), timeout=15)
+    except httpx.RequestError as e:
+        raise KieError(f"Couldn't reach KIE: {e}") from e
+
+    try:
+        payload = resp.json()
+    except ValueError as e:
+        raise KieError(f"KIE returned an unreadable response (HTTP {resp.status_code}).") from e
+
+    if payload.get("code") != 200:
+        raise KieError(payload.get("msg") or f"KIE credit balance check failed (HTTP {resp.status_code}).")
+
+    data = payload.get("data")
+    if not isinstance(data, (int, float)):
+        raise KieError("KIE's credit balance response didn't include a numeric balance.")
+    return int(data)
+
+
 def parse_result_urls(task_detail: dict) -> list[str]:
     raw = task_detail.get("resultJson")
     if not raw:

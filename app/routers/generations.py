@@ -26,6 +26,7 @@ from app.integrations.kie import (
     KieError,
     KieNotConfigured,
     credits_for,
+    get_credit_balance,
     get_task_detail,
     image_budget,
     parse_result_urls,
@@ -132,6 +133,18 @@ def cost_estimate(duration: str, resolution: str, count: int = 1):
         "per_video_credits": credits,
         "per_video_usd": usd,
     }
+
+
+@router.get("/kie-balance")
+def kie_balance():
+    """Live remaining KIE credit balance for the Generator header -- declared
+    before /{generation_id} for the same routing reason as /cost-estimate.
+    Never raises: a missing key or an unreachable/erroring KIE is reported as
+    `error` so the header can show "unavailable" instead of breaking the page."""
+    try:
+        return {"credits": get_credit_balance(), "error": None}
+    except (KieNotConfigured, KieError) as e:
+        return {"credits": None, "error": str(e)}
 
 
 @router.get("/{generation_id}", response_model=GenerationOut)
