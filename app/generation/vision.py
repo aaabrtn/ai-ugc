@@ -4,6 +4,7 @@ heavy lifting rather than anyone typing out physical descriptions by hand."""
 
 import base64
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -104,12 +105,22 @@ def _call_vision(image_paths: list[Path], instruction: str, max_tokens: int) -> 
     return text, usage
 
 
+# Observed failure: "Illegal trailing comma before end of object" -- the
+# model left a trailing comma before a closing `}`/`]` (e.g. after the last
+# key in an object, or the last item in an array). That's invalid strict
+# JSON but an extremely common, safe-to-repair LLM slip: removing a trailing
+# comma directly before a closing bracket can only ever fix things, since
+# it's always a redundant separator with nothing following it.
+_TRAILING_COMMA_RE = re.compile(r",(\s*[}\]])")
+
+
 def _parse_json(raw: str) -> dict:
     text = raw.strip()
     if text.startswith("```"):
         text = text.strip("`")
         if text.lower().startswith("json"):
             text = text[4:]
+    text = _TRAILING_COMMA_RE.sub(r"\1", text.strip())
     try:
         return json.loads(text)
     except json.JSONDecodeError as e:
@@ -296,23 +307,36 @@ def generate_movement_variations(
         except anthropic.APIError as e:
             raise VisionError(f"The AI request for movement variations failed: {e}") from e
 
-    message = _call(max_tokens)
-    if message.stop_reason == "max_tokens":
-        # The budget above genuinely wasn't enough for this particular response --
-        # retry once with double, rather than failing the whole batch outright.
-        message = _call(max_tokens * 2)
+    def _fetch_text() -> tuple[str, VisionUsage]:
+        message = _call(max_tokens)
         if message.stop_reason == "max_tokens":
-            raise VisionError(
-                "The AI's response for movement variations was cut off (ran out of output tokens) twice "
-                "in a row, even after doubling the budget -- try a smaller batch count, or try again."
-            )
+            # The budget above genuinely wasn't enough for this particular
+            # response -- retry once with double, rather than failing the
+            # whole batch outright.
+            message = _call(max_tokens * 2)
+            if message.stop_reason == "max_tokens":
+                raise VisionError(
+                    "The AI's response for movement variations was cut off (ran out of output tokens) "
+                    "twice in a row, even after doubling the budget -- try a smaller batch count, or try "
+                    "again."
+                )
+        text = "".join(block.text for block in message.content if block.type == "text").strip()
+        if not text:
+            raise VisionError("The AI request for movement variations returned an empty response.")
+        return text, VisionUsage(message.usage.input_tokens, message.usage.output_tokens, VISION_MODEL)
 
-    text = "".join(block.text for block in message.content if block.type == "text").strip()
-    if not text:
-        raise VisionError("The AI request for movement variations returned an empty response.")
-    usage = VisionUsage(message.usage.input_tokens, message.usage.output_tokens, VISION_MODEL)
+    text, usage = _fetch_text()
+    try:
+        data = _parse_json(text)
+    except VisionError:
+        # A complete-but-malformed response (invalid JSON syntax the trailing-
+        # comma repair in _parse_json didn't catch) is usually just a one-off
+        # formatting slip, distinct from a truncation (already retried above)
+        # -- a fresh attempt often succeeds outright, so retry once with a
+        # brand new response rather than failing the whole batch over it.
+        text, usage = _fetch_text()
+        data = _parse_json(text)
 
-    data = _parse_json(text)
     variations = []
     for entry in data.get("variations") or []:
         beats = [str(entry.get(f"cut{i}", "")).strip() for i in range(1, 6)]
