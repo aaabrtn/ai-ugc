@@ -22,6 +22,7 @@
 }
 
 * { box-sizing: border-box; }
+img { max-width: 100%; height: auto; }
 
 body {
   margin: 0;
@@ -1038,6 +1039,28 @@ input[type="url"]:focus,
   .form-grid { grid-template-columns: 1fr; }
   .form-grid .field-card:last-child { grid-column: auto; }
   .name-input { font-size: 1.35rem; }
+
+  /* The 4 tabs don't fit their text at full desktop size on a phone-width
+     screen (measured overflow on a 390px viewport) -- shrink to fit, with
+     horizontal scroll as a safety net for even narrower phones rather than
+     letting them wrap or clip. */
+  .tabs { max-width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tab-btn { font-size: 0.78rem; padding: 0.42rem 0.7rem; white-space: nowrap; }
+
+  /* A form's header (title + an optional badge like the KIE balance) and its
+     Cancel/Save action row both assume desktop-width side-by-side space --
+     stacked full-width instead, so nothing crowds or requires precise
+     tapping on a phone. */
+  .form-header { flex-direction: column; align-items: stretch; }
+  .form-actions,
+  #script-form .form-actions {
+    flex-direction: column;
+  }
+  .form-actions .btn,
+  #script-form .form-actions .btn {
+    width: 100%;
+    margin-left: 0;
+  }
 }
 
 [hidden] { display: none !important; }
