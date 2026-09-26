@@ -50,6 +50,13 @@ ALLOWED_RESOLUTIONS = {"720p", "1080p", "4k"}
 
 MAX_BATCH_SIZE = 5  # caps one click's blast radius -- KIE bills each video independently, no bulk discount
 
+# Caps how many finished videos' files stay on disk at once, since hosted
+# storage is billed by the GB unlike running this locally. Everything else
+# about an older generation (prompt, cost, timings) stays in History forever
+# -- only the video file itself gets deleted once it ages past this many
+# more-recent ones.
+MAX_STORED_VIDEOS = 50
+
 
 def product_summary(product: Product) -> ProductSummaryOut:
     thumbnail_url = f"/uploads/products/{product.images[0].file_path}" if product.images else ""
@@ -111,6 +118,7 @@ def generation_to_out(g: Generation) -> GenerationOut:
         video_status=g.video_status,
         video_error=g.video_error or "",
         video_url=f"/uploads/generations/{g.video_local_path}" if g.video_local_path else "",
+        video_archived=g.video_archived,
         vision_cost_usd=g.vision_cost_usd,
         kie_credits_cost=g.kie_credits_cost,
         kie_usd_cost=g.kie_usd_cost,
@@ -513,6 +521,28 @@ def submit_video(generation_id: str, db: Session = Depends(get_db)):
     return generation_to_out(g)
 
 
+def _archive_old_videos(db: Session, keep: int = MAX_STORED_VIDEOS) -> None:
+    """Deletes the video FILE for any generation beyond the `keep` most
+    recently completed ones that still have one stored -- the row itself
+    (prompt, cost, timings) is untouched and stays in History forever. Runs
+    after every new video finishes downloading, so storage never grows
+    past `keep` videos' worth regardless of how many get generated."""
+    stored = (
+        db.query(Generation)
+        .filter(Generation.video_local_path != "", Generation.video_archived.is_(False))
+        .order_by(Generation.video_completed_at.desc())
+        .all()
+    )
+    to_archive = stored[keep:]
+    if not to_archive:
+        return
+    for g in to_archive:
+        shutil.rmtree(VIDEO_UPLOADS_DIR / g.id, ignore_errors=True)
+        g.video_local_path = ""
+        g.video_archived = True
+    db.commit()
+
+
 def refresh_video_status(db: Session, g: Generation) -> Generation:
     """Checks KIE for this generation's current task state and updates the row
     accordingly. Shared by the /video-status endpoint (polled by the browser)
@@ -561,6 +591,11 @@ def refresh_video_status(db: Session, g: Generation) -> Generation:
 
     db.commit()
     db.refresh(g)
+
+    if g.video_status == VideoStatus.success:
+        _archive_old_videos(db)
+        db.refresh(g)
+
     return g
 
 

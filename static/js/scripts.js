@@ -762,13 +762,20 @@ function buildVideoResultRow(script) {
   const block = document.createElement("div");
   block.className = "video-result-block";
 
-  const videoItem = document.createElement("div");
-  videoItem.className = "video-result-player";
-  const video = document.createElement("video");
-  video.controls = true;
-  video.src = script.video_url;
-  videoItem.append(video, buildDownloadLink(script, "btn btn-ghost btn-sm"));
-  block.appendChild(videoItem);
+  if (script.video_archived) {
+    const archivedNote = document.createElement("p");
+    archivedNote.className = "history-card-archived";
+    archivedNote.textContent = "Video archived to save storage — the prompt and cost details below are still here.";
+    block.appendChild(archivedNote);
+  } else {
+    const videoItem = document.createElement("div");
+    videoItem.className = "video-result-player";
+    const video = document.createElement("video");
+    video.controls = true;
+    video.src = script.video_url;
+    videoItem.append(video, buildDownloadLink(script, "btn btn-ghost btn-sm"));
+    block.appendChild(videoItem);
+  }
 
   const costLine = buildCostLine(script);
   if (costLine) block.appendChild(costLine);
@@ -1146,10 +1153,17 @@ function renderHistoryCard(script, batchSizes) {
   const card = document.createElement("div");
   card.className = "history-card";
 
-  const video = document.createElement("video");
-  video.controls = true;
-  video.src = script.video_url;
-  card.appendChild(video);
+  if (script.video_archived) {
+    const archivedNote = document.createElement("p");
+    archivedNote.className = "history-card-archived";
+    archivedNote.textContent = "Video archived to save storage — everything else below is still here.";
+    card.appendChild(archivedNote);
+  } else {
+    const video = document.createElement("video");
+    video.controls = true;
+    video.src = script.video_url;
+    card.appendChild(video);
+  }
 
   // DD-MM-YY-HH-MM of when this generation was created -- its ID, unique and
   // simple, instead of the character/product name (which repeats across
@@ -1180,7 +1194,10 @@ function renderHistoryCard(script, batchSizes) {
     showScriptDetail(script);
   });
 
-  actions.append(viewBtn, buildDownloadLink(script, "btn btn-primary btn-sm"));
+  actions.appendChild(viewBtn);
+  if (!script.video_archived) {
+    actions.appendChild(buildDownloadLink(script, "btn btn-primary btn-sm"));
+  }
   card.appendChild(actions);
 
   return card;

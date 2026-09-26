@@ -204,6 +204,12 @@ class Generation(Base):
     # for reference/debugging.
     video_result_url = Column(Text, default="")
     video_local_path = Column(String, default="")
+    # True once this generation's video file has been deleted to cap storage
+    # (see _archive_old_videos in routers/generations.py) -- the row and every
+    # other field (prompt, cost, timings) stay exactly as they were; only the
+    # file itself and video_local_path are gone. Distinguishes "archived on
+    # purpose" from "download failed"/"not generated yet" in the UI.
+    video_archived = Column(Boolean, default=False, nullable=False)
 
     # Cost tracking. Vision figures are exact — real token counts from the AI
     # vision calls this generation actually made (0 if persona/setting were

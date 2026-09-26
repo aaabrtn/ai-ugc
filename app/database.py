@@ -90,6 +90,9 @@ def init_db():
             # finished or finished before generation time was tracked at all;
             # NULL correctly means "unknown," not a placeholder duration.
             "video_completed_at": "DATETIME",
+            # False is correct for every row predating this column -- nothing
+            # had ever been archived yet.
+            "video_archived": "BOOLEAN DEFAULT 0",
         },
     )
 

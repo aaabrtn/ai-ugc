@@ -125,6 +125,7 @@ class GenerationOut(BaseModel):
     video_status: VideoStatus
     video_error: str
     video_url: str  # the app's own locally-served copy, once downloaded
+    video_archived: bool = False  # video file deleted to cap storage; everything else about the row is unchanged
 
     # Cost tracking — see the comment on the Generation model for what's exact
     # (vision) vs. a configured estimate (kie).

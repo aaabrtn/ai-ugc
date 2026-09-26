@@ -867,6 +867,22 @@ input[type="url"]:focus,
   border-style: dashed;
 }
 
+.history-card-archived {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 110px;
+  min-height: 120px;
+  margin-bottom: 0.15rem;
+  padding: 0.5rem;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-alt);
+  color: var(--text-muted);
+  font-size: 0.72rem;
+  line-height: 1.35;
+}
+
 .history-card-status {
   display: flex;
   align-items: center;
